@@ -1,0 +1,43 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "ODO.UZ - Chrome (Hot Reload)",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main.dart",
+            "deviceId": "chrome",
+            "args": ["--web-port", "8080"]
+        },
+        {
+            "name": "ODO.UZ - iOS Simulator",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main.dart",
+            "deviceId": "ios"
+        },
+        {
+            "name": "ODO.UZ - Android Emulator",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main.dart",
+            "deviceId": "android"
+        },
+        {
+            "name": "ODO.UZ - Network Access (Share)",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main.dart",
+            "deviceId": "chrome",
+            "args": ["--web-hostname", "0.0.0.0", "--web-port", "8112"]
+        },
+        {
+            "name": "ODO.UZ - Profile Mode",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main.dart",
+            "deviceId": "chrome",
+            "flutterMode": "profile"
+        }
+    ]
+}

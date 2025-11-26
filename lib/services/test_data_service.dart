@@ -1,0 +1,425 @@
+import '../models/firestore_models.dart';
+
+/// Сервис для работы с тестовыми данными
+/// Используется когда Firestore недоступен или есть проблемы с правами
+class TestDataService {
+  static final List<FirestoreUser> _testSpecialists = [
+    // Барберы
+    FirestoreUser(
+      id: 'test_specialist_1',
+      phoneNumber: '+998901234567',
+      name: 'Алишер Усманов',
+      userType: 'specialist',
+      category: 'barber',
+      description: 'Опытный барбер с 5-летним стажем. Специализируюсь на классических и современных стрижках. Работаю с любыми типами волос.',
+      pricePerHour: 50000.0,
+      avatarUrl: 'https://i.pravatar.cc/150?img=12',
+      deviceTokens: const [],
+      notificationPreferences: const {'push': true, 'sms': true, 'email': true},
+      createdAt: DateTime.now().subtract(const Duration(days: 30)),
+      updatedAt: DateTime.now(),
+      isVerified: true,
+      location: {'lat': 41.2995, 'lng': 69.2401},
+      skills: ['Стрижка', 'Бритье', 'Укладка', 'Окрашивание'],
+      rating: 4.8,
+      totalOrders: 127,
+    ),
+    FirestoreUser(
+      id: 'test_specialist_5',
+      phoneNumber: '+998901234571',
+      name: 'Дмитрий Ковалев',
+      userType: 'specialist',
+      category: 'barber',
+      description: 'Мастер мужских стрижек премиум-класса. Работаю в стиле барбершоп. Индивидуальный подход к каждому клиенту.',
+      pricePerHour: 60000.0,
+      avatarUrl: 'https://i.pravatar.cc/150?img=13',
+      deviceTokens: const [],
+      notificationPreferences: const {'push': true, 'sms': true, 'email': true},
+      createdAt: DateTime.now().subtract(const Duration(days: 15)),
+      updatedAt: DateTime.now(),
+      isVerified: true,
+      location: {'lat': 41.3050, 'lng': 69.2450},
+      skills: ['Мужские стрижки', 'Борода', 'Усы', 'Бритье опасной бритвой'],
+      rating: 4.9,
+      totalOrders: 89,
+    ),
+    FirestoreUser(
+      id: 'test_specialist_6',
+      phoneNumber: '+998901234572',
+      name: 'Иван Петров',
+      userType: 'specialist',
+      category: 'barber',
+      description: 'Молодой талантливый барбер. Слежу за последними трендами в мужских стрижках. Быстро и качественно.',
+      pricePerHour: 45000.0,
+      avatarUrl: 'https://i.pravatar.cc/150?img=14',
+      deviceTokens: const [],
+      notificationPreferences: const {'push': true, 'sms': true, 'email': true},
+      createdAt: DateTime.now().subtract(const Duration(days: 10)),
+      updatedAt: DateTime.now(),
+      isVerified: false,
+      location: {'lat': 41.3150, 'lng': 69.2550},
+      skills: ['Модные стрижки', 'Фейды', 'Укладка'],
+      rating: 4.6,
+      totalOrders: 45,
+    ),
+    // Няни
+    FirestoreUser(
+      id: 'test_specialist_2',
+      phoneNumber: '+998901234568',
+      name: 'Мария Петрова',
+      userType: 'specialist',
+      category: 'nanny',
+      description: 'Профессиональная няня с медицинским образованием. Опыт работы с детьми от 0 до 12 лет. Развивающие занятия, прогулки, уход.',
+      pricePerHour: 40000.0,
+      avatarUrl: 'https://i.pravatar.cc/150?img=47',
+      deviceTokens: const [],
+      notificationPreferences: const {'push': true, 'sms': true, 'email': true},
+      createdAt: DateTime.now().subtract(const Duration(days: 45)),
+      updatedAt: DateTime.now(),
+      isVerified: true,
+      location: {'lat': 41.3100, 'lng': 69.2500},
+      skills: ['Уход за детьми', 'Развивающие игры', 'Первая помощь', 'Подготовка к школе'],
+      rating: 4.9,
+      totalOrders: 89,
+    ),
+    FirestoreUser(
+      id: 'test_specialist_7',
+      phoneNumber: '+998901234573',
+      name: 'Анна Смирнова',
+      userType: 'specialist',
+      category: 'nanny',
+      description: 'Опытная няня с педагогическим образованием. Специализируюсь на работе с дошкольниками. Развивающие методики, творческие занятия.',
+      pricePerHour: 45000.0,
+      avatarUrl: 'https://i.pravatar.cc/150?img=45',
+      deviceTokens: const [],
+      notificationPreferences: const {'push': true, 'sms': true, 'email': true},
+      createdAt: DateTime.now().subtract(const Duration(days: 25)),
+      updatedAt: DateTime.now(),
+      isVerified: true,
+      location: {'lat': 41.3200, 'lng': 69.2600},
+      skills: ['Дошкольное развитие', 'Творчество', 'Чтение', 'Логика'],
+      rating: 4.8,
+      totalOrders: 112,
+    ),
+    // Мастера по дому
+    FirestoreUser(
+      id: 'test_specialist_3',
+      phoneNumber: '+998901234569',
+      name: 'Сергей Иванов',
+      userType: 'specialist',
+      category: 'handyman',
+      description: 'Мастер на все руки - электрика, сантехника, ремонт. Быстрое решение любых бытовых проблем. Гарантия на все работы.',
+      pricePerHour: 60000.0,
+      avatarUrl: 'https://i.pravatar.cc/150?img=15',
+      deviceTokens: const [],
+      notificationPreferences: const {'push': true, 'sms': true, 'email': true},
+      createdAt: DateTime.now().subtract(const Duration(days: 20)),
+      updatedAt: DateTime.now(),
+      isVerified: true,
+      location: {'lat': 41.3200, 'lng': 69.2600},
+      skills: ['Электрика', 'Сантехника', 'Ремонт мебели', 'Установка техники'],
+      rating: 4.7,
+      totalOrders: 156,
+    ),
+    FirestoreUser(
+      id: 'test_specialist_8',
+      phoneNumber: '+998901234574',
+      name: 'Александр Волков',
+      userType: 'specialist',
+      category: 'handyman',
+      description: 'Профессиональный электрик. Монтаж и ремонт электропроводки, установка розеток, выключателей, светильников. Безопасно и качественно.',
+      pricePerHour: 55000.0,
+      avatarUrl: 'https://i.pravatar.cc/150?img=16',
+      deviceTokens: const [],
+      notificationPreferences: const {'push': true, 'sms': true, 'email': true},
+      createdAt: DateTime.now().subtract(const Duration(days: 35)),
+      updatedAt: DateTime.now(),
+      isVerified: true,
+      location: {'lat': 41.3250, 'lng': 69.2650},
+      skills: ['Электромонтаж', 'Ремонт проводки', 'Установка освещения'],
+      rating: 4.9,
+      totalOrders: 203,
+    ),
+    FirestoreUser(
+      id: 'test_specialist_9',
+      phoneNumber: '+998901234575',
+      name: 'Михаил Соколов',
+      userType: 'specialist',
+      category: 'handyman',
+      description: 'Сантехник с большим опытом. Устранение протечек, замена труб, установка сантехники. Работаю аккуратно, без грязи.',
+      pricePerHour: 58000.0,
+      avatarUrl: 'https://i.pravatar.cc/150?img=17',
+      deviceTokens: const [],
+      notificationPreferences: const {'push': true, 'sms': true, 'email': true},
+      createdAt: DateTime.now().subtract(const Duration(days: 28)),
+      updatedAt: DateTime.now(),
+      isVerified: true,
+      location: {'lat': 41.3300, 'lng': 69.2700},
+      skills: ['Сантехника', 'Устранение протечек', 'Установка сантехники'],
+      rating: 4.8,
+      totalOrders: 178,
+    ),
+    // Строители
+    FirestoreUser(
+      id: 'test_specialist_4',
+      phoneNumber: '+998901234570',
+      name: 'Анна Козлова',
+      userType: 'specialist',
+      category: 'construction',
+      description: 'Руководитель строительной бригады. Полный цикл строительных работ: от проектирования до отделки. Качественные материалы, соблюдение сроков.',
+      pricePerHour: 80000.0,
+      avatarUrl: 'https://i.pravatar.cc/150?img=20',
+      deviceTokens: const [],
+      notificationPreferences: const {'push': true, 'sms': true, 'email': true},
+      createdAt: DateTime.now().subtract(const Duration(days: 60)),
+      updatedAt: DateTime.now(),
+      isVerified: true,
+      location: {'lat': 41.3300, 'lng': 69.2700},
+      skills: ['Строительство', 'Ремонт', 'Дизайн', 'Отделка'],
+      rating: 4.6,
+      totalOrders: 203,
+    ),
+    FirestoreUser(
+      id: 'test_specialist_10',
+      phoneNumber: '+998901234576',
+      name: 'Владимир Новиков',
+      userType: 'specialist',
+      category: 'construction',
+      description: 'Опытный строитель. Кладка, штукатурка, покраска, укладка плитки. Работаю один и с бригадой. Гарантия качества.',
+      pricePerHour: 70000.0,
+      avatarUrl: 'https://i.pravatar.cc/150?img=18',
+      deviceTokens: const [],
+      notificationPreferences: const {'push': true, 'sms': true, 'email': true},
+      createdAt: DateTime.now().subtract(const Duration(days: 40)),
+      updatedAt: DateTime.now(),
+      isVerified: true,
+      location: {'lat': 41.3350, 'lng': 69.2750},
+      skills: ['Кладка', 'Штукатурка', 'Плитка', 'Покраска'],
+      rating: 4.7,
+      totalOrders: 145,
+    ),
+    FirestoreUser(
+      id: 'test_specialist_11',
+      phoneNumber: '+998901234577',
+      name: 'Елена Морозова',
+      userType: 'specialist',
+      category: 'construction',
+      description: 'Дизайнер-отделочник. Современный дизайн интерьеров, качественная отделка. Помогу создать уютный и стильный дом.',
+      pricePerHour: 75000.0,
+      avatarUrl: 'https://i.pravatar.cc/150?img=21',
+      deviceTokens: const [],
+      notificationPreferences: const {'push': true, 'sms': true, 'email': true},
+      createdAt: DateTime.now().subtract(const Duration(days: 18)),
+      updatedAt: DateTime.now(),
+      isVerified: true,
+      location: {'lat': 41.3400, 'lng': 69.2800},
+      skills: ['Дизайн интерьеров', 'Отделка', 'Декорирование'],
+      rating: 4.9,
+      totalOrders: 67,
+    ),
+    // Дополнительные специалисты
+    FirestoreUser(
+      id: 'test_specialist_12',
+      phoneNumber: '+998901234578',
+      name: 'Олег Лебедев',
+      userType: 'specialist',
+      category: 'handyman',
+      description: 'Универсальный мастер. Ремонт мебели, сборка, установка дверей и окон. Быстро и недорого.',
+      pricePerHour: 50000.0,
+      avatarUrl: 'https://i.pravatar.cc/150?img=19',
+      deviceTokens: const [],
+      notificationPreferences: const {'push': true, 'sms': true, 'email': true},
+      createdAt: DateTime.now().subtract(const Duration(days: 12)),
+      updatedAt: DateTime.now(),
+      isVerified: false,
+      location: {'lat': 41.3000, 'lng': 69.2400},
+      skills: ['Ремонт мебели', 'Сборка', 'Установка'],
+      rating: 4.5,
+      totalOrders: 34,
+    ),
+  ];
+
+  static final Map<String, List<FirestoreSpecialistService>> _testServices = {
+    'test_specialist_1': [
+      FirestoreSpecialistService(
+        id: 'service_1',
+        specialistId: 'test_specialist_1',
+        name: 'Мужская стрижка',
+        description: 'Классическая стрижка с укладкой',
+        price: 50000,
+        durationMinutes: 30,
+        category: 'barber',
+        createdAt: DateTime.now().subtract(const Duration(days: 5)),
+        updatedAt: DateTime.now(),
+      ),
+      FirestoreSpecialistService(
+        id: 'service_2',
+        specialistId: 'test_specialist_1',
+        name: 'Стрижка + борода',
+        description: 'Стрижка волос и оформление бороды',
+        price: 80000,
+        durationMinutes: 45,
+        category: 'barber',
+        createdAt: DateTime.now().subtract(const Duration(days: 4)),
+        updatedAt: DateTime.now(),
+      ),
+      FirestoreSpecialistService(
+        id: 'service_3',
+        specialistId: 'test_specialist_1',
+        name: 'Детская стрижка',
+        description: 'Стрижка для детей с игровой атмосферой',
+        price: 40000,
+        durationMinutes: 25,
+        category: 'barber',
+        createdAt: DateTime.now().subtract(const Duration(days: 3)),
+        updatedAt: DateTime.now(),
+      ),
+    ],
+    'test_specialist_2': [
+      FirestoreSpecialistService(
+        id: 'service_1',
+        specialistId: 'test_specialist_2',
+        name: 'Няня на вечер',
+        description: 'Уход за ребенком на вечернее время',
+        price: 70000,
+        durationMinutes: 240,
+        category: 'nanny',
+        createdAt: DateTime.now().subtract(const Duration(days: 5)),
+        updatedAt: DateTime.now(),
+      ),
+      FirestoreSpecialistService(
+        id: 'service_2',
+        specialistId: 'test_specialist_2',
+        name: 'Няня на полный день',
+        description: 'Полный день заботы и развивающих игр',
+        price: 120000,
+        durationMinutes: 480,
+        category: 'nanny',
+        createdAt: DateTime.now().subtract(const Duration(days: 4)),
+        updatedAt: DateTime.now(),
+      ),
+    ],
+  };
+
+  /// Получить всех тестовых специалистов
+  static List<FirestoreUser> getTestSpecialists() {
+    return List.from(_testSpecialists);
+  }
+
+  /// Получить услуги специалиста (тестовые данные)
+  static List<FirestoreSpecialistService> getTestServicesForSpecialist(String specialistId) {
+    final services = _testServices[specialistId];
+    if (services != null) {
+      return services
+          .map((service) => service.copyWith(
+                createdAt: service.createdAt,
+                updatedAt: DateTime.now(),
+              ))
+          .toList();
+    }
+    // дефолтный набор услуг
+    return [
+      FirestoreSpecialistService(
+        id: 'service_default_1',
+        specialistId: specialistId,
+        name: 'Консультация',
+        description: 'Первичная консультация',
+        price: 30000,
+        durationMinutes: 30,
+        category: 'general',
+        createdAt: DateTime.now().subtract(const Duration(days: 2)),
+        updatedAt: DateTime.now(),
+      ),
+      FirestoreSpecialistService(
+        id: 'service_default_2',
+        specialistId: specialistId,
+        name: 'Основная услуга',
+        description: 'Основной пакет услуг',
+        price: 60000,
+        durationMinutes: 60,
+        category: 'general',
+        createdAt: DateTime.now().subtract(const Duration(days: 1)),
+        updatedAt: DateTime.now(),
+      ),
+    ];
+  }
+
+  /// Получить специалистов по категории
+  static List<FirestoreUser> getTestSpecialistsByCategory(String category) {
+    return _testSpecialists.where((s) => s.category == category).toList();
+  }
+
+  /// Поиск специалистов по местоположению
+  static List<FirestoreUser> searchTestSpecialistsByLocation({
+    required double lat,
+    required double lng,
+    required double radiusKm,
+    String? category,
+  }) {
+    List<FirestoreUser> results = _testSpecialists;
+    
+    if (category != null) {
+      results = results.where((s) => s.category == category).toList();
+    }
+    
+    // Простая фильтрация по расстоянию (для тестирования)
+    return results.where((specialist) {
+      if (specialist.location == null) return false;
+      
+      final location = specialist.location!;
+      final specialistLat = (location['lat'] ?? location['latitude']) as double;
+      final specialistLng = (location['lng'] ?? location['longitude']) as double;
+      
+      // Простой расчет расстояния (не точный, но для тестирования подойдет)
+      final distance = ((lat - specialistLat).abs() + (lng - specialistLng).abs()) * 111; // примерное расстояние в км
+      
+      return distance <= radiusKm;
+    }).toList();
+  }
+
+  /// Создать тестового пользователя
+  static FirestoreUser createTestUser({
+    required String phoneNumber,
+    required String name,
+    required String userType,
+    String? category,
+    String? description,
+    double? pricePerHour,
+  }) {
+    return FirestoreUser(
+      id: 'test_user_${DateTime.now().millisecondsSinceEpoch}',
+      phoneNumber: phoneNumber,
+      name: name,
+      userType: userType,
+      category: category,
+      description: description,
+      pricePerHour: pricePerHour,
+      deviceTokens: const [],
+      notificationPreferences: const {'push': true, 'sms': true, 'email': true},
+      avatarUrl: null,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      isVerified: false,
+      location: {'lat': 41.2995, 'lng': 69.2401}, // Ташкент по умолчанию
+      skills: category != null ? _getDefaultSkills(category) : null,
+      rating: 0.0,
+      totalOrders: 0,
+    );
+  }
+
+  /// Получить навыки по умолчанию для категории
+  static List<String> _getDefaultSkills(String category) {
+    switch (category) {
+      case 'barber':
+        return ['Стрижка', 'Бритье', 'Укладка'];
+      case 'nanny':
+        return ['Уход за детьми', 'Развивающие игры', 'Первая помощь'];
+      case 'handyman':
+        return ['Электрика', 'Сантехника', 'Ремонт'];
+      case 'construction':
+        return ['Строительство', 'Ремонт', 'Дизайн'];
+      default:
+        return ['Общие услуги'];
+    }
+  }
+}
