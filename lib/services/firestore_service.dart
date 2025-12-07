@@ -271,7 +271,7 @@ class FirestoreService {
   // Создание заказа
   static Future<FirestoreOrder> createOrder(FirestoreOrder order) async {
     try {
-      final ordersRef = _firestore.collection(_ordersCollection);
+      final ordersRef = _firestore.collection('orders');
       final docRef = order.id.isEmpty ? ordersRef.doc() : ordersRef.doc(order.id);
       final createdAt = order.createdAt;
       final orderToSave = order.copyWith(
@@ -307,7 +307,7 @@ class FirestoreService {
   static Future<List<FirestoreOrder>> getClientOrders(String clientId) async {
     try {
       final query = await _firestore
-          .collection(_ordersCollection)
+          .collection('orders')
           .where('clientId', isEqualTo: clientId)
           .orderBy('createdAt', descending: true)
           .get();
@@ -325,7 +325,7 @@ class FirestoreService {
   static Future<List<FirestoreOrder>> getSpecialistOrders(String specialistId) async {
     try {
       final query = await _firestore
-          .collection(_ordersCollection)
+          .collection('orders')
           .where('specialistId', isEqualTo: specialistId)
           .orderBy('createdAt', descending: true)
           .get();
@@ -342,7 +342,7 @@ class FirestoreService {
   // Получение заказа по ID
   static Future<FirestoreOrder?> getOrderById(String orderId) async {
     try {
-      final doc = await _firestore.collection(_ordersCollection).doc(orderId).get();
+      final doc = await _firestore.collection('orders').doc(orderId).get();
       if (doc.exists) {
         final data = doc.data()!;
         data['id'] = doc.id;
@@ -357,7 +357,7 @@ class FirestoreService {
 
   static Stream<List<FirestoreOrder>> watchClientOrders(String clientId) {
     return _firestore
-        .collection(_ordersCollection)
+        .collection('orders')
         .where('clientId', isEqualTo: clientId)
         .orderBy('createdAt', descending: true)
         .snapshots()
@@ -368,7 +368,7 @@ class FirestoreService {
 
   static Stream<List<FirestoreOrder>> watchSpecialistOrders(String specialistId) {
     return _firestore
-        .collection(_ordersCollection)
+        .collection('orders')
         .where('specialistId', isEqualTo: specialistId)
         .orderBy('createdAt', descending: true)
         .snapshots()
@@ -389,7 +389,7 @@ class FirestoreService {
         updates['completedAt'] = Timestamp.fromDate(DateTime.now());
       }
 
-      await _firestore.collection(_ordersCollection).doc(orderId).update(updates);
+      await _firestore.collection('orders').doc(orderId).update(updates);
 
       print('✅ Статус заказа обновлен: $orderId -> $status');
     } catch (e) {
@@ -459,6 +459,68 @@ class FirestoreService {
     }
   }
 
+    // Рейтинг по городам и нишам за месяц
+Future<List<CitySpecialistRating>> getCityRatingsByCategoryForMonth(
+    DateTime monthStart,
+  ) async {
+    try {
+      final monthEnd = DateTime(monthStart.year, monthStart.month + 1, 1);
+
+      final snapshot = await FirebaseFirestore.instance
+          .collection('orders')
+          .where('status', isEqualTo: 'completed')
+          .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(monthStart))
+          .where('createdAt', isLessThan: Timestamp.fromDate(monthEnd))
+          .get();
+
+      final Map<String, _CityAgg> agg = {};
+
+      for (final doc in snapshot.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        final order = FirestoreOrder.fromMap(data);
+
+        String city = (order.address ?? '').split(',').first.trim();
+        if (city.isEmpty) city = 'Не указан';
+
+        final key = '____';
+        final rating = order.rating ?? 0.0;
+
+        agg.putIfAbsent(
+          key,
+          () => _CityAgg(
+            city: city,
+            category: order.category,
+            specialistId: order.specialistId,
+            specialistName: order.title,
+          ),
+        );
+
+        final a = agg[key]!;
+        a.totalOrders += 1;
+        if (rating > 0) {
+          a.totalReviews += 1;
+          a.ratingSum += rating;
+        }
+      }
+
+      return agg.values.map((a) {
+        final avg = a.totalReviews > 0 ? a.ratingSum / a.totalReviews : 0.0;
+        return CitySpecialistRating(
+          city: a.city,
+          category: a.category,
+          specialistId: a.specialistId,
+          specialistName: a.specialistName,
+          averageRating: double.parse(avg.toStringAsFixed(2)),
+          totalReviews: a.totalReviews,
+          totalOrders: a.totalOrders,
+        );
+      }).toList();
+    } catch (e) {
+      print('❌ Ошибка получения рейтинга по городам: ');
+      return [];
+    }
+  }
+
   // ========== ПОИСК ==========
 
   // Поиск специалистов по местоположению
@@ -488,4 +550,84 @@ class FirestoreService {
       return [];
     }
   }
+}
+
+
+Future<List<CitySpecialistRating>> getCityRatingsByCategoryForMonth(
+    DateTime monthStart,
+  ) async {
+    try {
+      final monthEnd = DateTime(monthStart.year, monthStart.month + 1, 1);
+
+      final snapshot = await FirebaseFirestore.instance
+          .collection('orders')
+          .where('status', isEqualTo: 'completed')
+          .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(monthStart))
+          .where('createdAt', isLessThan: Timestamp.fromDate(monthEnd))
+          .get();
+
+      // ключ: city__category__specialistId
+      final Map<String, _CityAgg> agg = {};
+
+      for (final doc in snapshot.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        final order = FirestoreOrder.fromMap(data);
+
+        String city = (order.address ?? '').split(',').first.trim();
+        if (city.isEmpty) city = 'Не указан';
+
+        final key = '${city}__${order.category}__${order.specialistId}';
+        final rating = order.rating ?? 0.0;
+
+        agg.putIfAbsent(
+          key,
+          () => _CityAgg(
+            city: city,
+            category: order.category,
+            specialistId: order.specialistId,
+            specialistName: order.title,
+          ),
+        );
+
+        final a = agg[key]!;
+        a.totalOrders += 1;
+        if (rating > 0) {
+          a.totalReviews += 1;
+          a.ratingSum += rating;
+        }
+      }
+
+      return agg.values.map((a) {
+        final avg = a.totalReviews > 0 ? a.ratingSum / a.totalReviews : 0.0;
+        return CitySpecialistRating(
+          city: a.city,
+          category: a.category,
+          specialistId: a.specialistId,
+          specialistName: a.specialistName,
+          averageRating: double.parse(avg.toStringAsFixed(2)),
+          totalReviews: a.totalReviews,
+          totalOrders: a.totalOrders,
+        );
+      }).toList();
+    } catch (e) {
+      print('❌ Ошибка получения рейтинга по городам: $e');
+      return [];
+    }
+  }
+
+class _CityAgg {
+  final String city;
+  final String category;
+  final String specialistId;
+  final String specialistName;
+  int totalOrders = 0;
+  int totalReviews = 0;
+  double ratingSum = 0.0;
+
+  _CityAgg({
+    required this.city,
+    required this.category,
+    required this.specialistId,
+    required this.specialistName,
+  });
 }

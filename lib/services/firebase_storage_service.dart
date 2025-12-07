@@ -1,8 +1,6 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
-import '../config/firebase_config.dart';
 
 class FirebaseStorageService {
   static final FirebaseStorageService _instance = FirebaseStorageService._internal();
@@ -12,14 +10,14 @@ class FirebaseStorageService {
   final FirebaseStorage _storage = FirebaseStorage.instance;
   final ImagePicker _picker = ImagePicker();
 
-  /// Загружает файл в Firebase Storage (универсальный метод)
+  /// Загружает файл в Firebase Storage
   Future<String?> uploadFile(File file, String path) async {
     try {
       final ref = _storage.ref().child(path);
-      final uploadTask = await ref.putFile(file);
-      final downloadUrl = await uploadTask.ref.getDownloadURL();
-      print('Файл загружен: $downloadUrl');
-      return downloadUrl;
+      await ref.putFile(file);
+      final url = await ref.getDownloadURL();
+      print('Файл загружен: $url');
+      return url;
     } catch (e) {
       print('Ошибка загрузки файла: $e');
       return null;
@@ -37,17 +35,15 @@ class FirebaseStorageService {
       final fileName = '${DateTime.now().millisecondsSinceEpoch}_${imageFile.name}';
       final path = '$folder/$userId/$fileName';
       
-      // Создаем ссылку на файл
+      // Загружаем в Firebase Storage
       final ref = _storage.ref().child(path);
+      await ref.putFile(File(imageFile.path));
       
-      // Загружаем файл
-      final uploadTask = await ref.putFile(File(imageFile.path));
+      // Получаем публичный URL
+      final url = await ref.getDownloadURL();
       
-      // Получаем URL загруженного файла
-      final downloadUrl = await uploadTask.ref.getDownloadURL();
-      
-      print('Изображение загружено: $downloadUrl');
-      return downloadUrl;
+      print('Изображение загружено: $url');
+      return url;
     } catch (e) {
       print('Ошибка загрузки изображения: $e');
       return null;
@@ -81,8 +77,11 @@ class FirebaseStorageService {
   /// Удаляет изображение из Storage
   Future<bool> deleteImage(String imageUrl) async {
     try {
-      final ref = _storage.refFromURL(imageUrl);
-      await ref.delete();
+      // Извлекаем путь из URL
+      final uri = Uri.parse(imageUrl);
+      final path = uri.pathSegments.last;
+      
+      await _storage.ref().child(path).delete();
       print('Изображение удалено: $imageUrl');
       return true;
     } catch (e) {
@@ -123,10 +122,14 @@ class FirebaseStorageService {
     }
   }
 
-  /// Показывает диалог выбора источника изображения
-  Future<XFile?> showImageSourceDialog() async {
-    // Этот метод будет использоваться в UI для показа диалога
-    // Пока возвращаем null, реализуем в UI компонентах
-    return null;
+  /// Получает публичный URL файла
+  Future<String> getPublicUrl(String path) async {
+    try {
+      final ref = _storage.ref().child(path);
+      return await ref.getDownloadURL();
+    } catch (e) {
+      print('Ошибка получения URL: $e');
+      rethrow;
+    }
   }
 }

@@ -1,9 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import '../models/firestore_models.dart';
 import '../services/firestore_service.dart';
 import '../services/test_data_service.dart';
-import '../services/simple_sms_service.dart';
+import '../services/firebase_auth_service.dart';
+import '../services/push_notification_service.dart';
+import '../services/analytics_service.dart';
 
 class FirestoreAuthState {
   final FirestoreUser? user;
@@ -49,7 +50,7 @@ class FirestoreAuthState {
 }
 
 class FirestoreAuthNotifier extends StateNotifier<FirestoreAuthState> {
-  final SimpleSmsService _smsService = SimpleSmsService();
+  final FirebaseAuthService _firebaseAuthService = FirebaseAuthService();
   static const Map<String, bool> _defaultNotificationPreferences = {
     'push': true,
     'sms': true,
@@ -86,26 +87,31 @@ class FirestoreAuthNotifier extends StateNotifier<FirestoreAuthState> {
       registrationUserType: userType,
     );
     
-    await _smsService.sendSmsCode(phoneNumber);
-    print('📱 SMS код отправлен на $phoneNumber');
+    final result = await _firebaseAuthService.sendSmsCode(phoneNumber);
+    if (result['success'] == true) {
+      print('📱 SMS код отправлен на $phoneNumber через Firebase');
+    } else {
+      throw Exception(result['error'] ?? 'Ошибка отправки SMS');
+    }
   }
 
   // Вход через SMS
-  Future<void> login(String phoneNumber, String smsCode) async {
+  Future<void> login(String phoneNumber, String smsCode, {String? verificationId}) async {
     state = state.copyWith(isLoading: true, error: null);
 
     try {
       print('🔐 Попытка входа с номером: $phoneNumber, код: $smsCode');
 
-      // Проверяем SMS код
-      final isValid = await _smsService.verifySmsCode(phoneNumber, smsCode);
+      // Проверяем SMS код через Firebase Phone Authentication
+      final isValid = await _firebaseAuthService.verifySmsCode(phoneNumber, smsCode);
       
       if (!isValid) {
         throw Exception('Неверный код подтверждения');
       }
 
-      // Пропускаем создание Firebase пользователя - используем только локальную аутентификацию
-      print('🔐 Используем локальную аутентификацию без Firebase Auth');
+      // Получаем Firebase User после успешной верификации
+      final firebaseUser = _firebaseAuthService.currentUser;
+      print('✅ Firebase Auth: Пользователь аутентифицирован: ${firebaseUser?.uid}');
 
       // Ищем пользователя в Firestore
       FirestoreUser? user;
@@ -131,19 +137,29 @@ class FirestoreAuthNotifier extends StateNotifier<FirestoreAuthState> {
         ));
       }
 
-      // Обновляем статус верификации
+      // Обновляем статус верификации и используем Firebase Auth UID как ID
+      final firebaseUid = firebaseUser?.uid ?? phoneNumber;
       final verifiedUser = user.copyWith(
+        id: firebaseUid, // Используем Firebase Auth UID
         isVerified: true,
         updatedAt: DateTime.now(),
       );
       final normalizedUser = _withNotificationDefaults(verifiedUser);
       
-      // Пытаемся обновить в Firestore, но не критично если не получится
+      // Пытаемся создать или обновить в Firestore
       try {
-        await FirestoreService.updateUser(normalizedUser);
-        print('✅ Пользователь обновлен в Firestore');
+        // Проверяем, существует ли пользователь с таким ID
+        final existingUser = await FirestoreService.getUserById(firebaseUid);
+        if (existingUser != null) {
+          await FirestoreService.updateUser(normalizedUser);
+          print('✅ Пользователь обновлен в Firestore');
+        } else {
+          // Создаем нового пользователя
+          await FirestoreService.createUser(normalizedUser);
+          print('✅ Пользователь создан в Firestore');
+        }
       } catch (e) {
-        print('⚠️ Не удалось обновить пользователя в Firestore: $e');
+        print('⚠️ Не удалось сохранить пользователя в Firestore: $e');
         // Продолжаем с локальными данными
       }
 
@@ -152,6 +168,27 @@ class FirestoreAuthNotifier extends StateNotifier<FirestoreAuthState> {
         isLoading: false,
         error: null,
       );
+
+      // Сохраняем токен устройства для push-уведомлений
+      try {
+        await PushNotificationService.saveTokenToUser(normalizedUser.id);
+      } catch (e) {
+        print('⚠️ Не удалось сохранить токен устройства: $e');
+      }
+
+      // Логируем событие входа в Analytics
+      try {
+        await AnalyticsService.logLogin(
+          loginMethod: 'sms',
+          userId: normalizedUser.id,
+        );
+        await AnalyticsService.setUserProperties(
+          userType: normalizedUser.userType,
+          category: normalizedUser.category,
+        );
+      } catch (e) {
+        print('⚠️ Не удалось залогировать событие входа: $e');
+      }
 
       print('✅ Успешный вход: ${user.name} (${user.userType})');
     } catch (e) {
@@ -251,6 +288,14 @@ class FirestoreAuthNotifier extends StateNotifier<FirestoreAuthState> {
       }
 
       state = state.copyWith(user: user, isLoading: false, error: null);
+      
+      // Сохраняем токен устройства для push-уведомлений
+      try {
+        await PushNotificationService.saveTokenToUser(user.id);
+      } catch (e) {
+        print('⚠️ Не удалось сохранить токен устройства: $e');
+      }
+      
       print('✅ Успешный вход через OneID: ${user.name} (${user.userType})');
     } catch (e) {
       print('❌ Ошибка OneID входа: $e');
@@ -325,13 +370,19 @@ class FirestoreAuthNotifier extends StateNotifier<FirestoreAuthState> {
         error: null,
       );
 
+      // Сохраняем токен устройства для push-уведомлений
+      try {
+        await PushNotificationService.saveTokenToUser(newUser.id);
+      } catch (e) {
+        print('⚠️ Не удалось сохранить токен устройства: $e');
+      }
+
       print('✅ Пользователь зарегистрирован: ${newUser.name}');
     } catch (e) {
       // Если Firestore недоступен, создаем пользователя локально
       print('⚠️ Firestore недоступен, создаем пользователя локально: $e');
       
       try {
-        final now = DateTime.now();
         final newUser = _withNotificationDefaults(TestDataService.createTestUser(
           phoneNumber: phoneNumber,
           name: name,

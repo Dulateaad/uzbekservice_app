@@ -63,6 +63,13 @@ class AppConstants {
   static const Color categoryConstructionColor = Color(0xFF14B8A6);
   static const Color categoryMedicalColor = Color(0xFFEF4444);
   static const Color categoryOtherColor = Color(0xFF6B7280);
+  static const Color categoryPlumberColor = Color(0xFF0891B2);
+  static const Color categoryApplianceColor = Color(0xFF7C3AED);
+  static const Color categoryHousekeeperColor = Color(0xFFDB2777);
+  static const Color categoryTutorColor = Color(0xFF2563EB);
+  static const Color categoryPsychologistColor = Color(0xFF059669);
+  static const Color categoryMovingColor = Color(0xFFEA580C);
+  static const Color categoryElectricianColor = Color(0xFFCA8A04);
   
   // Spacing (Design System)
   static const double spacingXS = 4.0;
@@ -109,6 +116,47 @@ class AppConstants {
       'icon': Icons.content_cut,
       'color': categoryBarberColor,
       'emoji': '✂️',
+      'description': 'Стрижки, укладки, бритьё',
+    },
+    {
+      'id': 'plumber',
+      'name': 'Сантехники',
+      'icon': Icons.plumbing,
+      'color': categoryPlumberColor,
+      'emoji': '🔧',
+      'description': 'Ремонт труб, установка сантехники',
+    },
+    {
+      'id': 'electrician',
+      'name': 'Электрики',
+      'icon': Icons.electrical_services,
+      'color': categoryElectricianColor,
+      'emoji': '⚡',
+      'description': 'Проводка, розетки, освещение',
+    },
+    {
+      'id': 'appliance_repair',
+      'name': 'Ремонт техники',
+      'icon': Icons.home_repair_service,
+      'color': categoryApplianceColor,
+      'emoji': '🔌',
+      'description': 'Ремонт бытовой техники',
+    },
+    {
+      'id': 'construction',
+      'name': 'Строительство и ремонт',
+      'icon': Icons.construction,
+      'color': categoryConstructionColor,
+      'emoji': '🏗️',
+      'description': 'Ремонт квартир, домов',
+    },
+    {
+      'id': 'housekeeper',
+      'name': 'Домработницы',
+      'icon': Icons.cleaning_services,
+      'color': categoryHousekeeperColor,
+      'emoji': '🧹',
+      'description': 'Уборка, глажка, готовка',
     },
     {
       'id': 'nanny',
@@ -116,20 +164,39 @@ class AppConstants {
       'icon': Icons.child_care,
       'color': categoryNannyColor,
       'emoji': '👶',
+      'description': 'Уход за детьми',
+    },
+    {
+      'id': 'tutor',
+      'name': 'Репетиторы',
+      'icon': Icons.school,
+      'color': categoryTutorColor,
+      'emoji': '📚',
+      'description': 'Обучение, подготовка к экзаменам',
+    },
+    {
+      'id': 'psychologist',
+      'name': 'Психологи',
+      'icon': Icons.psychology,
+      'color': categoryPsychologistColor,
+      'emoji': '🧠',
+      'description': 'Консультации, терапия',
+    },
+    {
+      'id': 'moving',
+      'name': 'Услуги переезда',
+      'icon': Icons.local_shipping,
+      'color': categoryMovingColor,
+      'emoji': '🚚',
+      'description': 'Грузчики, перевозка мебели',
     },
     {
       'id': 'handyman',
-      'name': 'Мастера по дому',
+      'name': 'Мастера на все руки',
       'icon': Icons.build,
       'color': categoryHandymanColor,
-      'emoji': '🔧',
-    },
-    {
-      'id': 'construction',
-      'name': 'Строительные бригады',
-      'icon': Icons.construction,
-      'color': categoryConstructionColor,
-      'emoji': '🏗️',
+      'emoji': '🛠️',
+      'description': 'Мелкий ремонт, сборка мебели',
     },
   ];
   

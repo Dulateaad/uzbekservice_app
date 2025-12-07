@@ -5,9 +5,11 @@
 *.swp
 .DS_Store
 .atom/
+.build/
 .buildlog/
 .history
 .svn/
+.swiftpm/
 migrate_working_dir/
 
 # IntelliJ related
@@ -73,7 +75,6 @@ app.*.map.json
 **/ios/Runner/GeneratedPluginRegistrant.*
 
 # Web related
-lib/generated_plugin_registrant.dart
 
 # Exceptions to above rules.
 !**/ios/**/default.mode1v3
@@ -90,6 +91,12 @@ lib/generated_plugin_registrant.dart
 firebase_options.dart
 google-services.json
 GoogleService-Info.plist
+
+# Android Keystore (ВАЖНО: не коммитить!)
+android/key.properties
+android/*.jks
+android/*.keystore
+android/odo_uz_keystore.jks
 
 # Supabase (если нужно скрыть ключи)
 # lib/config/supabase_config.dart - НЕ игнорируем, но можно создать .env

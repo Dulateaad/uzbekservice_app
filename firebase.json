@@ -1,4 +1,15 @@
 {
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "storage": {
+    "rules": "storage.rules"
+  },
+  "functions": {
+    "source": "functions",
+    "runtime": "nodejs20"
+  },
   "hosting": {
     "public": "build/web",
     "ignore": [
@@ -8,21 +19,28 @@
     ],
     "rewrites": [
       {
+        "source": "privacy-policy.html",
+        "destination": "/privacy-policy.html"
+      },
+      {
+        "source": "terms-of-service.html",
+        "destination": "/terms-of-service.html"
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }
     ],
     "headers": [
       {
-        "source": "**/*.@(js|css|html|png|jpg|jpeg|gif|svg|woff|woff2|ttf|eot)",
+        "source": "*.html",
         "headers": [
           {
             "key": "Cache-Control",
-            "value": "max-age=31536000"
+            "value": "max-age=3600"
           }
         ]
       }
     ]
   }
 }
-

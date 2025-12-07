@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/firestore_models.dart';
 import '../services/firestore_service.dart';
+import '../services/analytics_service.dart';
 import '../services/test_data_service.dart';
 
 class BookingState {
@@ -313,6 +314,19 @@ class BookingNotifier extends StateNotifier<BookingState> {
 
     try {
       final savedOrder = await FirestoreService.createOrder(order);
+      
+      // Логируем событие создания заказа в Analytics
+      try {
+        await AnalyticsService.logOrderCreated(
+          orderId: savedOrder.id,
+          specialistId: savedOrder.specialistId,
+          amount: savedOrder.price,
+          category: savedOrder.category,
+        );
+      } catch (e) {
+        print('⚠️ Не удалось залогировать создание заказа: $e');
+      }
+      
       return savedOrder;
     } catch (e) {
       state = state.copyWith(isSubmitting: false, errorMessage: 'Ошибка создания заказа: $e');

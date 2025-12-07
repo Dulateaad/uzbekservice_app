@@ -14,6 +14,10 @@ class OneIdUser {
   final String? phone;
   final Map<String, dynamic> rawData;
 
+  // Геттеры для совместимости
+  String? get name => fullNameLatin ?? fullNameCyrillic;
+  String? get phoneNumber => phone;
+
   OneIdUser({
     required this.sub,
     this.pin,
@@ -250,5 +254,15 @@ class OneIdService {
   /// Очистка состояния
   void reset() {
     _pendingState = null;
+  }
+
+  /// Алиас для startAuthFlow (для совместимости)
+  Future<bool> launchAuthorization() async {
+    return await startAuthFlow();
+  }
+
+  /// Обмен кода на токен через бэкенд (публичный метод)
+  Future<OneIdAuthResult?> exchangeCodeForTokenViaBackend(String code, String redirectUri) async {
+    return await _exchangeCodeForToken(code);
   }
 }

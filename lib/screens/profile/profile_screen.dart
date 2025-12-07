@@ -474,6 +474,13 @@ class ProfileScreen extends ConsumerWidget {
       const SizedBox(height: 16),
       if (user?.userType == 'specialist') ...[
         _ProfileTile(
+          icon: Icons.bar_chart,
+          title: 'Рейтинг по городам',
+          subtitle: 'Статистика по нишам за месяц',
+          onTap: () => context.go('/home/profile/analytics-city-ratings'),
+        ),
+        const SizedBox(height: 16),
+        _ProfileTile(
           icon: Icons.work_outline,
           title: 'Профиль специалиста',
           subtitle: 'Управление услугами и ценами',
@@ -518,6 +525,20 @@ class ProfileScreen extends ConsumerWidget {
         title: 'О приложении',
         subtitle: 'Версия ${AppConstants.appVersion}',
         onTap: () => _showAboutDialog(context),
+      ),
+      const SizedBox(height: 16),
+      _ProfileTile(
+        icon: Icons.description,
+        title: 'Пользовательское соглашение',
+        subtitle: 'Условия использования сервиса',
+        onTap: () => context.go('/home/terms-of-service'),
+      ),
+      const SizedBox(height: 16),
+      _ProfileTile(
+        icon: Icons.privacy_tip,
+        title: 'Политика конфиденциальности',
+        subtitle: 'Как мы обрабатываем ваши данные',
+        onTap: () => context.go('/home/privacy-policy'),
       ),
       const SizedBox(height: 16),
       _ProfileTile(
@@ -615,6 +636,21 @@ class ProfileScreen extends ConsumerWidget {
       children: [
         const Text(
           'Мобильное приложение для соединения клиентов со специалистами в Узбекистане.',
+        ),
+        const SizedBox(height: 16),
+        TextButton(
+          onPressed: () {
+            Navigator.of(context).pop();
+            context.go('/home/terms-of-service');
+          },
+          child: const Text('Пользовательское соглашение'),
+        ),
+        TextButton(
+          onPressed: () {
+            Navigator.of(context).pop();
+            context.go('/home/privacy-policy');
+          },
+          child: const Text('Политика конфиденциальности'),
         ),
       ],
     );

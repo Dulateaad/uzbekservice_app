@@ -6,7 +6,7 @@ import '../../models/firestore_models.dart';
 import '../../providers/booking_provider.dart';
 import '../../widgets/design_system_button.dart';
 
-class DateTimeScreen extends ConsumerWidget {
+class DateTimeScreen extends ConsumerStatefulWidget {
   final String specialistId;
 
   const DateTimeScreen({
@@ -15,9 +15,27 @@ class DateTimeScreen extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final bookingState = ref.watch(bookingProvider(specialistId));
-    final bookingNotifier = ref.read(bookingProvider(specialistId).notifier);
+  ConsumerState<DateTimeScreen> createState() => _DateTimeScreenState();
+}
+
+class _DateTimeScreenState extends ConsumerState<DateTimeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Устанавливаем дату по умолчанию при первой загрузке
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final bookingState = ref.read(bookingProvider(widget.specialistId));
+      if (bookingState.selectedDate == null) {
+        final defaultDate = DateTime.now().add(const Duration(days: 1));
+        ref.read(bookingProvider(widget.specialistId).notifier).selectDate(defaultDate);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bookingState = ref.watch(bookingProvider(widget.specialistId));
+    final bookingNotifier = ref.read(bookingProvider(widget.specialistId).notifier);
 
     final selectedServices = bookingState.selectedServices;
     final totalDuration = bookingState.totalDurationMinutes;
@@ -96,7 +114,7 @@ class DateTimeScreen extends ConsumerWidget {
               child: DesignSystemButton(
                 text: 'Далее',
                 onPressed: selectedTimeSlot != null
-                    ? () => context.go('/home/booking/address/$specialistId')
+                    ? () => context.go('/home/booking/address/${widget.specialistId}')
                     : null,
                 type: ButtonType.primary,
               ),

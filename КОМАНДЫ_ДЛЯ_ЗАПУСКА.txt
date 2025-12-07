@@ -1,0 +1,24 @@
+==========================================
+  КОМАНДЫ ДЛЯ ЗАПУСКА BUILD
+==========================================
+
+Выполните эти команды по порядку:
+
+cd ~/uzbekservice_app
+
+git add .github/workflows/ios_build.yml ios/Podfile
+
+git commit -m "Configure code signing for GitHub Actions"
+
+git push
+
+==========================================
+  После push:
+==========================================
+
+1. Перейдите: https://github.com/Dulateaad/uzbekservice_app/actions
+2. Дождитесь завершения build (10-15 минут)
+3. Скачайте IPA из Artifacts
+
+==========================================
+

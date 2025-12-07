@@ -58,7 +58,7 @@ class AuthService {
       final user = UserModel(
         id: firebaseUser.uid,
         phoneNumber: phoneNumber,
-        name: null,
+        name: '',
         userType: 'client',
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
@@ -66,8 +66,10 @@ class AuthService {
 
       // Сохраняем токен
       final token = await firebaseUser.getIdToken();
-      await _saveAuthToken(token);
-      _apiService.setAuthToken(token);
+      if (token != null) {
+        await _saveAuthToken(token);
+        _apiService.setAuthToken(token);
+      }
 
       return user;
     } catch (e) {
@@ -147,7 +149,7 @@ class AuthService {
       return UserModel(
         id: firebaseUser.uid,
         phoneNumber: firebaseUser.phoneNumber ?? '',
-        name: firebaseUser.displayName,
+        name: firebaseUser.displayName ?? '',
         userType: 'client',
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
@@ -186,7 +188,7 @@ class AuthService {
 
       // Проверяем токен
       final token = await firebaseUser.getIdToken();
-      return token.isNotEmpty;
+      return token != null && token.isNotEmpty;
     } catch (e) {
       return false;
     }

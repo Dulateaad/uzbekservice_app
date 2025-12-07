@@ -1,4 +1,4 @@
-import '../utils/timestamp_stub.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 // Модель чата
 class ChatModel {

@@ -132,7 +132,7 @@ class AppTheme {
       ),
       
       // Карточки (Design System)
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         elevation: 4,
         shadowColor: AppConstants.primaryColor.withOpacity(0.1),
         shape: RoundedRectangleBorder(

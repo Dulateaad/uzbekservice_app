@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../constants/app_constants.dart';
@@ -30,7 +31,14 @@ class ConfirmationScreen extends ConsumerWidget {
     final address = bookingState.addressLine;
     final comment = bookingState.additionalNote;
 
-    final canConfirm = bookingState.canProceed && services.isNotEmpty && date != null && time != null && address.isNotEmpty;
+    final canConfirm = services.isNotEmpty && date != null && time != null && address.isNotEmpty;
+    
+    // Собираем список того, что не заполнено
+    final List<String> missingItems = [];
+    if (services.isEmpty) missingItems.add('услуги');
+    if (date == null) missingItems.add('дата');
+    if (time == null) missingItems.add('время');
+    if (address.isEmpty) missingItems.add('адрес');
 
     return Scaffold(
       backgroundColor: AppConstants.backgroundColor,
@@ -87,17 +95,68 @@ class ConfirmationScreen extends ConsumerWidget {
               ),
             ),
             child: SafeArea(
-              child: DesignSystemButton(
-                text: bookingState.isSubmitting ? 'Создание заказа...' : 'Подтвердить заказ',
-                onPressed: !canConfirm || bookingState.isSubmitting
-                    ? null
-                    : () => _confirmBooking(
-                          context: context,
-                          ref: ref,
-                          bookingNotifier: bookingNotifier,
-                          authState: authState,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Показываем что не заполнено
+                  if (!canConfirm && missingItems.isNotEmpty) ...[
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: AppConstants.warningColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: AppConstants.warningColor.withOpacity(0.3),
                         ),
-                type: ButtonType.primary,
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.warning_amber_rounded,
+                            color: AppConstants.warningColor,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Не заполнено: ${missingItems.join(", ")}',
+                              style: TextStyle(
+                                color: AppConstants.warningColor,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  DesignSystemButton(
+                    text: bookingState.isSubmitting 
+                        ? 'Создание заказа...' 
+                        : (canConfirm ? 'Подтвердить заказ' : 'Заполните все поля'),
+                    onPressed: bookingState.isSubmitting
+                        ? null
+                        : () {
+                            if (!canConfirm) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Заполните: ${missingItems.join(", ")}'),
+                                  backgroundColor: AppConstants.warningColor,
+                                ),
+                              );
+                              return;
+                            }
+                            _confirmBooking(
+                              context: context,
+                              ref: ref,
+                              bookingNotifier: bookingNotifier,
+                              authState: authState,
+                            );
+                          },
+                    type: canConfirm ? ButtonType.primary : ButtonType.secondary,
+                  ),
+                ],
               ),
             ),
           ),
@@ -133,18 +192,114 @@ class ConfirmationScreen extends ConsumerWidget {
       );
 
       if (savedOrder != null && context.mounted) {
-        bookingNotifier.resetSelection();
-        context.go('/home/booking/success/$specialistId', extra: savedOrder);
+        // Переходим на экран выбора оплаты
+        context.push('/payment/select', extra: {
+          'orderId': savedOrder.id,
+          'amount': bookingState.totalPrice,
+          'specialistName': bookingState.specialist?.name ?? 'Специалист',
+        });
       }
     } catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Ошибка создания заказа: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _showErrorDialog(context, e.toString(), bookingState);
     }
+  }
+
+  void _showErrorDialog(BuildContext context, String error, BookingState bookingState) {
+    final errorDetails = '''
+🚨 ОШИБКА СОЗДАНИЯ ЗАКАЗА
+
+❌ Ошибка: $error
+
+📋 Детали заказа:
+- Специалист: ${bookingState.specialist?.name ?? 'Не выбран'}
+- Услуги: ${bookingState.selectedServices.map((s) => s.name).join(', ')}
+- Дата: ${bookingState.selectedDate}
+- Время: ${bookingState.selectedTimeSlot}
+- Адрес: ${bookingState.addressLine}
+- Сумма: ${bookingState.totalPrice} сум
+
+📱 Время: ${DateTime.now()}
+''';
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Row(
+          children: [
+            Icon(Icons.error_outline, color: Colors.red.shade600, size: 28),
+            const SizedBox(width: 12),
+            const Text('Ошибка'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.red.shade200),
+              ),
+              child: SelectableText(
+                error,
+                style: TextStyle(
+                  color: Colors.red.shade700,
+                  fontSize: 14,
+                  fontFamily: 'monospace',
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Нажмите "Копировать" чтобы скопировать полную информацию об ошибке',
+              style: TextStyle(
+                color: Colors.grey.shade600,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Закрыть'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: errorDetails));
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Row(
+                    children: [
+                      Icon(Icons.check_circle, color: Colors.white),
+                      SizedBox(width: 12),
+                      Text('Ошибка скопирована!'),
+                    ],
+                  ),
+                  backgroundColor: Colors.green,
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              );
+            },
+            icon: const Icon(Icons.copy),
+            label: const Text('Копировать'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildSpecialistInfo(BuildContext context, FirestoreUser? specialist) {

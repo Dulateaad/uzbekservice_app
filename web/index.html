@@ -37,32 +37,124 @@
     // The value below is injected by flutter build, do not touch.
     var serviceWorkerVersion = null;
   </script>
+  
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-storage-compat.js"></script>
+         <script>
+           // Firebase configuration
+           const firebaseConfig = {
+             apiKey: "AIzaSyAa8kAiaItTeaf2UTE1T2fDxV_Z57z7cjk",
+             authDomain: "odo-uz-1f4d9.firebaseapp.com",
+             projectId: "odo-uz-1f4d9",
+             storageBucket: "odo-uz-1f4d9.firebasestorage.app",
+             messagingSenderId: "747555139152",
+             appId: "1:747555139152:web:7ba508c04a65dc11946b55"
+           };
+           // Initialize Firebase
+           firebase.initializeApp(firebaseConfig);
+           
+           // Регистрируем service worker для push-уведомлений
+           if ('serviceWorker' in navigator) {
+             navigator.serviceWorker.register('/firebase-messaging-sw.js')
+               .then((registration) => {
+                 console.log('✅ Service Worker зарегистрирован:', registration.scope);
+                 
+                 // Слушаем сообщения от service worker (клики по уведомлениям)
+                 navigator.serviceWorker.addEventListener('message', (event) => {
+                   if (event.data && event.data.type === 'notification_click') {
+                     console.log('📱 Обработка клика по уведомлению:', event.data);
+                     // Навигация будет обработана через Flutter
+                     // Можно отправить сообщение в Flutter через window.postMessage
+                     window.postMessage({
+                       type: 'notification_click',
+                       data: event.data.data,
+                       url: event.data.url
+                     }, '*');
+                   }
+                 });
+               })
+               .catch((error) => {
+                 console.error('❌ Ошибка регистрации Service Worker:', error);
+               });
+           }
+         </script>
+  
   <!-- This script adds the flutter initialization JS code -->
   <script src="flutter.js" defer></script>
   
   <!-- Google Maps JavaScript API - Simplified Loading -->
   <script>
+    // Глобальная переменная для отслеживания состояния загрузки
+    window.googleMapsReady = false;
+    window.googleMapsLoading = false;
+    window.googleMapsCallbacks = [];
+    
     // Простая функция для загрузки Google Maps API
     window.loadGoogleMapsAPI = function(onSuccess, onError) {
+      // Если уже загружен
       if (window.google && window.google.maps) {
+        console.log('✅ Google Maps API уже загружен');
+        window.googleMapsReady = true;
         if (onSuccess) onSuccess();
         return;
       }
       
+      // Если уже загружается, добавляем в очередь
+      if (window.googleMapsLoading) {
+        console.log('⏳ Google Maps API загружается, добавляем в очередь...');
+        window.googleMapsCallbacks.push({ onSuccess, onError });
+        return;
+      }
+      
+      // Начинаем загрузку
+      window.googleMapsLoading = true;
+      console.log('🔄 Начинаем загрузку Google Maps API...');
+      
       const script = document.createElement('script');
       script.async = true;
       script.defer = true;
-      script.src = 'https://maps.googleapis.com/maps/api/js?key=AIzaSyAomtM5KaHgrG95yTVN5Wirn46Qgq--yKY&libraries=places&loading=async';
-      script.onload = () => {
-        console.log('🗺️ Google Maps API загружен');
+      // Используем callback для гарантированной загрузки
+      const callbackName = 'initGoogleMaps_' + Date.now();
+      window[callbackName] = function() {
+        console.log('✅ Google Maps API загружен и инициализирован');
+        window.googleMapsReady = true;
+        window.googleMapsLoading = false;
+        
+        // Вызываем все колбэки
         if (onSuccess) onSuccess();
+        window.googleMapsCallbacks.forEach(cb => {
+          if (cb.onSuccess) cb.onSuccess();
+        });
+        window.googleMapsCallbacks = [];
+        
+        // Удаляем временную функцию
+        delete window[callbackName];
       };
+      
+      script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyAomtM5KaHgrG95yTVN5Wirn46Qgq--yKY&libraries=places&callback=${callbackName}`;
+      
       script.onerror = () => {
         console.error('❌ Ошибка загрузки Google Maps API');
+        window.googleMapsLoading = false;
         if (onError) onError('Failed to load Google Maps API');
+        window.googleMapsCallbacks.forEach(cb => {
+          if (cb.onError) cb.onError('Failed to load Google Maps API');
+        });
+        window.googleMapsCallbacks = [];
+        delete window[callbackName];
       };
+      
       document.head.appendChild(script);
     };
+    
+    // Предзагрузка Google Maps API при загрузке страницы
+    window.addEventListener('DOMContentLoaded', function() {
+      // Не загружаем сразу, только по требованию
+      console.log('📄 Страница загружена, Google Maps будет загружен по требованию');
+    });
   </script>
   
   <style>
@@ -164,32 +256,93 @@
       });
     });
 
-    // Google Maps initialization
-    function initMap() {
-      console.log('🗺️ Google Maps API загружен');
-      
-      // Создаем глобальную переменную для карты
-      window.googleMapsReady = true;
-      
-      // Уведомляем Flutter о готовности карт
-      if (window.flutterGoogleMapsReady) {
-        window.flutterGoogleMapsReady();
-      }
-    }
-
     // Функция для получения API ключа
     function getGoogleMapsApiKey() {
       return 'AIzaSyAomtM5KaHgrG95yTVN5Wirn46Qgq--yKY';
     }
-
-    // Обновляем src атрибут с реальным API ключом
-    document.addEventListener('DOMContentLoaded', function() {
-      const script = document.querySelector('script[src*="maps.googleapis.com"]');
-      if (script) {
-        const apiKey = getGoogleMapsApiKey();
-        script.src = script.src.replace('YOUR_GOOGLE_MAPS_API_KEY', apiKey);
+    
+    // Глобальная функция для проверки готовности Google Maps
+    window.isGoogleMapsReady = function() {
+      return window.googleMapsReady && window.google && window.google.maps;
+    };
+    
+    // Функция для скрытия reCAPTCHA после успешной авторизации
+    function hideRecaptcha() {
+      // Скрываем reCAPTCHA виджеты
+      const recaptchaElements = document.querySelectorAll('[id^="recaptcha"], .grecaptcha-badge, iframe[src*="recaptcha"]');
+      recaptchaElements.forEach(element => {
+        if (element && element.style) {
+          element.style.display = 'none';
+          element.style.visibility = 'hidden';
+          element.style.opacity = '0';
+          element.style.position = 'absolute';
+          element.style.left = '-9999px';
+        }
+      });
+      
+      // Также скрываем родительские контейнеры
+      const recaptchaContainers = document.querySelectorAll('div[class*="recaptcha"], div[id*="recaptcha"]');
+      recaptchaContainers.forEach(container => {
+        if (container && container.style) {
+          const hasRecaptcha = container.querySelector('iframe[src*="recaptcha"]');
+          if (hasRecaptcha) {
+            container.style.display = 'none';
+            container.style.visibility = 'hidden';
+          }
+        }
+      });
+      
+      // reCAPTCHA скрыт (без логирования)
+    }
+    
+    // Слушаем изменения состояния аутентификации Firebase
+    if (typeof firebase !== 'undefined' && firebase.auth) {
+      firebase.auth().onAuthStateChanged(function(user) {
+        if (user) {
+          // Пользователь авторизован - скрываем reCAPTCHA
+          setTimeout(hideRecaptcha, 1000); // Небольшая задержка для гарантии
+          // Пользователь авторизован, скрываем reCAPTCHA (без логирования)
+        }
+      });
+    }
+    
+    // Также скрываем reCAPTCHA при навигации (на случай если событие не сработало)
+    let lastUrl = location.href;
+    new MutationObserver(() => {
+      const url = location.href;
+      if (url !== lastUrl) {
+        lastUrl = url;
+        // Если мы не на странице авторизации, скрываем reCAPTCHA
+        if (!url.includes('/auth/phone') && !url.includes('/auth/sms')) {
+          setTimeout(hideRecaptcha, 500);
+        }
       }
-    });
+    }).observe(document, { subtree: true, childList: true });
+    
+    // Периодически проверяем и скрываем reCAPTCHA (fallback)
+    setInterval(function() {
+      // Скрываем только если пользователь авторизован
+      if (typeof firebase !== 'undefined' && firebase.auth) {
+        firebase.auth().onAuthStateChanged(function(user) {
+          if (user && !location.href.includes('/auth/')) {
+            hideRecaptcha();
+          }
+        });
+      }
+    }, 2000);
   </script>
+  
+  <style>
+    /* Скрываем reCAPTCHA на страницах после авторизации */
+    body:not([data-page*="auth"]) [id^="recaptcha"],
+    body:not([data-page*="auth"]) .grecaptcha-badge,
+    body:not([data-page*="auth"]) iframe[src*="recaptcha"] {
+      display: none !important;
+      visibility: hidden !important;
+      opacity: 0 !important;
+      position: absolute !important;
+      left: -9999px !important;
+    }
+  </style>
 </body>
 </html>

@@ -6,8 +6,8 @@ import '../../widgets/custom_button.dart';
 import '../../widgets/custom_text_field.dart';
 import '../../widgets/gradient_button.dart';
 import '../../widgets/glass_card.dart';
-import '../../services/simple_sms_service.dart';
-import '../../providers/auth_provider.dart';
+import '../../services/firebase_auth_service.dart';
+import '../../providers/firestore_auth_provider.dart';
 import '../../widgets/simple_country_selector.dart';
 
 class PhoneAuthScreen extends ConsumerStatefulWidget {
@@ -20,10 +20,18 @@ class PhoneAuthScreen extends ConsumerStatefulWidget {
 class _PhoneAuthScreenState extends ConsumerState<PhoneAuthScreen> {
   final _formKey = GlobalKey<FormState>();
   final _phoneController = TextEditingController();
-  final _smsService = SimpleSmsService();
+  final _firebaseAuthService = FirebaseAuthService();
   bool _isLoading = false;
   String _selectedUserType = 'client'; // client или specialist
   String _selectedCountryCode = 'UZ';
+  String? _verificationId;
+
+  @override
+  void initState() {
+    super.initState();
+    // Устанавливаем начальный префикс в зависимости от выбранной страны
+    _phoneController.text = _selectedCountryCode == 'UZ' ? '+998' : '+7';
+  }
 
   @override
   void dispose() {
@@ -33,10 +41,40 @@ class _PhoneAuthScreenState extends ConsumerState<PhoneAuthScreen> {
 
   String _getPhoneHint() {
     if (_selectedCountryCode == 'UZ') {
-      return '+998 90 123 45 67';
+      return '90 123 45 67';
     } else {
-      return '+7 777 123 45 67';
+      return '777 123 45 67';
     }
+  }
+  
+  // Обновляет префикс в поле ввода при смене страны
+  void _updatePhonePrefix(String countryCode) {
+    final currentText = _phoneController.text.trim();
+    
+    // Убираем старый префикс если есть
+    String numberWithoutPrefix = currentText;
+    if (numberWithoutPrefix.startsWith('+998')) {
+      numberWithoutPrefix = numberWithoutPrefix.substring(4);
+    } else if (numberWithoutPrefix.startsWith('+7')) {
+      numberWithoutPrefix = numberWithoutPrefix.substring(2);
+    } else if (numberWithoutPrefix.startsWith('998')) {
+      numberWithoutPrefix = numberWithoutPrefix.substring(3);
+    } else if (numberWithoutPrefix.startsWith('7') && numberWithoutPrefix.length > 10) {
+      numberWithoutPrefix = numberWithoutPrefix.substring(1);
+    }
+    
+    // Убираем все пробелы, дефисы
+    numberWithoutPrefix = numberWithoutPrefix.replaceAll(RegExp(r'[\s\-\(\)]'), '');
+    
+    // Добавляем новый префикс
+    String newPrefix = countryCode == 'UZ' ? '+998' : '+7';
+    String newText = numberWithoutPrefix.isEmpty ? newPrefix : '$newPrefix$numberWithoutPrefix';
+    
+    _phoneController.text = newText;
+    // Перемещаем курсор в конец
+    _phoneController.selection = TextSelection.fromPosition(
+      TextPosition(offset: _phoneController.text.length),
+    );
   }
 
   void _sendSms() async {
@@ -48,26 +86,77 @@ class _PhoneAuthScreenState extends ConsumerState<PhoneAuthScreen> {
 
     try {
       if (_selectedUserType == 'client') {
-        // Для клиентов - отправляем SMS через простой сервис
-        final success = await _smsService.sendSmsCode(_phoneController.text);
+        // Форматируем номер телефона
+        String phoneNumber = _phoneController.text.trim();
         
-        if (success) {
+        // Убираем все пробелы, дефисы и скобки
+        phoneNumber = phoneNumber.replaceAll(RegExp(r'[\s\-\(\)]'), '');
+        
+        if (!phoneNumber.startsWith('+')) {
+          if (_selectedCountryCode == 'UZ') {
+            // Узбекистан: +998XXXXXXXXX (13 символов)
+            if (phoneNumber.startsWith('998')) {
+              phoneNumber = '+$phoneNumber';
+            } else if (phoneNumber.startsWith('9') && phoneNumber.length == 9) {
+              // 9XXXXXXXX (9 цифр) -> +9989XXXXXXXX
+              phoneNumber = '+998$phoneNumber';
+            } else if (phoneNumber.length >= 9) {
+              phoneNumber = '+998$phoneNumber';
+            } else {
+              phoneNumber = '+998$phoneNumber';
+            }
+          } else if (_selectedCountryCode == 'KZ') {
+            // Казахстан: +7XXXXXXXXXX (12 символов, 11 цифр после +)
+            if (phoneNumber.startsWith('7') && phoneNumber.length == 11) {
+              // 7XXXXXXXXXX (11 цифр, начинается с 7) -> +7XXXXXXXXXX
+              phoneNumber = '+$phoneNumber';
+            } else if (phoneNumber.startsWith('7') && phoneNumber.length == 10) {
+              // 7XXXXXXXXX (10 цифр) -> +7XXXXXXXXXX (добавляем еще одну цифру? Нет, это неправильно)
+              // Если 10 цифр начинается с 7, возможно это уже правильный формат без первой 7
+              phoneNumber = '+7$phoneNumber';
+            } else if (!phoneNumber.startsWith('7') && phoneNumber.length == 10) {
+              // XXXXXXXXXX (10 цифр, не начинается с 7) -> +7XXXXXXXXXX
+              phoneNumber = '+7$phoneNumber';
+            } else if (phoneNumber.length == 9) {
+              // XXXXXXXXX (9 цифр) -> +7XXXXXXXXXX (добавляем 7 в начало)
+              phoneNumber = '+7$phoneNumber';
+            } else {
+              // По умолчанию добавляем +7
+              phoneNumber = '+7$phoneNumber';
+            }
+          }
+        }
+        
+        print('🌍 Страна: $_selectedCountryCode, Введенный номер: ${_phoneController.text}, Отформатированный: $phoneNumber');
+
+        print('📱 Отправка SMS на номер: $phoneNumber');
+        
+        // Сохраняем номер телефона в провайдере
+        ref.read(firestoreAuthProvider.notifier).setPhoneNumber(phoneNumber);
+        
+        // Отправляем SMS через Firebase Phone Authentication
+        final result = await _firebaseAuthService.sendSmsCode(phoneNumber);
+        
+        if (result['success'] == true) {
+          _verificationId = result['verificationId'] as String?;
+          
           if (mounted) {
-            print('📱 Переходим на SMS экран с номером: ${_phoneController.text}');
-            
-            // Сохраняем номер телефона в AuthProvider
-            ref.read(authProvider.notifier).setPhoneNumber(_phoneController.text);
-            
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('SMS код отправлен! Проверьте консоль для получения кода.'),
+                content: Text('✅ SMS код отправлен! Проверьте телефон.'),
                 backgroundColor: Colors.green,
+                duration: Duration(seconds: 3),
               ),
             );
-            context.go('/auth/sms', extra: _phoneController.text);
+            
+            // Переходим на экран ввода кода
+            context.go('/auth/sms', extra: {
+              'phoneNumber': phoneNumber,
+              'verificationId': _verificationId,
+            });
           }
         } else {
-          throw Exception('Ошибка отправки SMS');
+          throw Exception(result['error'] ?? 'Ошибка отправки SMS');
         }
       } else {
         // Для специалистов - переходим к OneID
@@ -76,11 +165,13 @@ class _PhoneAuthScreenState extends ConsumerState<PhoneAuthScreen> {
         }
       }
     } catch (e) {
+      print('❌ Ошибка отправки SMS: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Ошибка: $e'),
+            content: Text('Ошибка: ${e.toString()}'),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
           ),
         );
       }
@@ -221,6 +312,8 @@ class _PhoneAuthScreenState extends ConsumerState<PhoneAuthScreen> {
                   onChanged: (countryCode) {
                     setState(() {
                       _selectedCountryCode = countryCode;
+                      // Автоматически добавляем префикс при смене страны
+                      _updatePhonePrefix(countryCode);
                     });
                   },
                 ),
@@ -233,12 +326,46 @@ class _PhoneAuthScreenState extends ConsumerState<PhoneAuthScreen> {
                   labelText: 'Номер телефона',
                   hintText: _getPhoneHint(),
                   keyboardType: TextInputType.phone,
-                  prefixIcon: const Icon(Icons.phone),
+                  prefixIcon: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const SizedBox(width: 12),
+                      const Icon(Icons.phone),
+                      const SizedBox(width: 8),
+                      Text(
+                        _selectedCountryCode == 'UZ' ? '+998' : '+7',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: AppConstants.primaryColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                  onChanged: (value) {
+                    // Автоматически добавляем префикс если его нет
+                    if (!value.startsWith('+')) {
+                      final prefix = _selectedCountryCode == 'UZ' ? '+998' : '+7';
+                      if (!value.startsWith(prefix)) {
+                        _phoneController.value = TextEditingValue(
+                          text: prefix + value,
+                          selection: TextSelection.collapsed(offset: (prefix + value).length),
+                        );
+                      }
+                    }
+                  },
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return 'Введите номер телефона';
                     }
-                    if (value.length < 9) {
+                    // Проверяем, что номер начинается с правильного префикса
+                    final expectedPrefix = _selectedCountryCode == 'UZ' ? '+998' : '+7';
+                    if (!value.startsWith(expectedPrefix)) {
+                      return 'Номер должен начинаться с $expectedPrefix';
+                    }
+                    // Проверяем минимальную длину (префикс + минимум 9 цифр)
+                    final numberOnly = value.replaceAll(RegExp(r'[^\d]'), '');
+                    if (numberOnly.length < (_selectedCountryCode == 'UZ' ? 12 : 11)) {
                       return 'Номер телефона слишком короткий';
                     }
                     // Проверяем на узбекские (+998) и казахские (+7) номера

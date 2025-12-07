@@ -787,7 +787,7 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen>
                     onPressed: () {
                       _cancelOrder();
                     },
-                    type: ButtonType.danger,
+                    type: ButtonType.accent,
                   )
                 else if (_order['status'] == 'completed')
                   DesignSystemButton(

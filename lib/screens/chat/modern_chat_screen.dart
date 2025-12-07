@@ -25,7 +25,7 @@ class _ModernChatScreenState extends ConsumerState<ModernChatScreen>
   final FocusNode _focusNode = FocusNode();
   
   late AnimationController _typingController;
-  late AnimationController _messageController;
+  late AnimationController _messageAnimationController;
   late Animation<double> _typingAnimation;
   late Animation<double> _messageAnimation;
   
@@ -56,7 +56,7 @@ class _ModernChatScreenState extends ConsumerState<ModernChatScreen>
       vsync: this,
     );
     
-    _messageController = AnimationController(
+    _messageAnimationController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
@@ -73,11 +73,11 @@ class _ModernChatScreenState extends ConsumerState<ModernChatScreen>
       begin: 0.0,
       end: 1.0,
     ).animate(CurvedAnimation(
-      parent: _messageController,
+      parent: _messageAnimationController,
       curve: Curves.easeOutCubic,
     ));
 
-    _messageController.forward();
+    _messageAnimationController.forward();
   }
 
   @override
@@ -86,7 +86,7 @@ class _ModernChatScreenState extends ConsumerState<ModernChatScreen>
     _scrollController.dispose();
     _focusNode.dispose();
     _typingController.dispose();
-    _messageController.dispose();
+    _messageAnimationController.dispose();
     super.dispose();
   }
 

@@ -727,7 +727,6 @@ class _AdvancedSearchScreenState extends ConsumerState<AdvancedSearchScreen>
                       context.go('/home/chat/specialist_${specialist['id']}');
                     },
                     type: ButtonType.secondary,
-                    size: ButtonSize.small,
                   ),
                   const SizedBox(width: 8),
                   DesignSystemButton(
@@ -736,7 +735,6 @@ class _AdvancedSearchScreenState extends ConsumerState<AdvancedSearchScreen>
                       context.go('/home/specialist/${specialist['id']}');
                     },
                     type: ButtonType.primary,
-                    size: ButtonSize.small,
                   ),
                 ],
               ),

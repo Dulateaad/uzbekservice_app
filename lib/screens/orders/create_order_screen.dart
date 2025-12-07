@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../constants/app_constants.dart';
 import '../../widgets/design_system_button.dart';
 import '../../services/test_data_service.dart';
+import '../../models/firestore_models.dart';
 
 class CreateOrderScreen extends ConsumerStatefulWidget {
   final String? specialistId;
@@ -49,8 +50,8 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen>
   bool _isLoading = false;
 
   // Данные для выбора
-  final List<Map<String, dynamic>> _categories = TestDataService.categories;
-  final List<Map<String, dynamic>> _specialists = TestDataService.specialists;
+  final List<Map<String, dynamic>> _categories = AppConstants.serviceCategories;
+  final List<FirestoreUser> _specialists = TestDataService.getTestSpecialists();
 
   @override
   void initState() {
@@ -107,11 +108,11 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen>
   void _loadInitialData() {
     if (widget.specialistId != null) {
       final specialist = _specialists.firstWhere(
-        (s) => s['id'] == widget.specialistId,
+        (s) => s.id == widget.specialistId,
         orElse: () => _specialists.first,
       );
-      _selectedSpecialist = specialist['id'];
-      _selectedCategory = specialist['category'];
+      _selectedSpecialist = specialist.id;
+      _selectedCategory = specialist.category ?? '';
     }
     
     if (widget.serviceId != null) {
@@ -381,7 +382,7 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen>
     }
 
     final categorySpecialists = _specialists.where(
-      (s) => s['category'] == _selectedCategory
+      (s) => s.category == _selectedCategory
     ).toList();
 
     return TweenAnimationBuilder<double>(
@@ -427,16 +428,17 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen>
                     itemCount: categorySpecialists.length,
                     itemBuilder: (context, index) {
                       final specialist = categorySpecialists[index];
-                      final isSelected = _selectedSpecialist == specialist['id'];
+                      final isSelected = _selectedSpecialist == specialist.id;
                       
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 12),
                         child: GestureDetector(
                           onTap: () {
                             setState(() {
-                              _selectedSpecialist = specialist['id'];
-                              _serviceController.text = specialist['services']?.first ?? '';
-                              _priceController.text = specialist['pricePerHour']?.toString() ?? '';
+                              _selectedSpecialist = specialist.id;
+                              // TODO: Загрузить услуги специалиста из Firestore
+                              _serviceController.text = '';
+                              _priceController.text = specialist.pricePerHour?.toString() ?? '';
                             });
                           },
                           child: AnimatedContainer(
@@ -444,7 +446,7 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen>
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
                               color: isSelected 
-                                  ? AppConstants.primaryColor.withOpacity(0.1)
+                                  ? AppConstants.primaryColor.withValues(alpha: 0.1)
                                   : AppConstants.backgroundColor,
                               borderRadius: BorderRadius.circular(AppConstants.radiusLG),
                               border: Border.all(
@@ -458,13 +460,13 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen>
                               children: [
                                 CircleAvatar(
                                   radius: 24,
-                                  backgroundColor: AppConstants.primaryColor.withOpacity(0.1),
-                                  backgroundImage: specialist['avatar'] != null
-                                      ? NetworkImage(specialist['avatar'])
+                                  backgroundColor: AppConstants.primaryColor.withValues(alpha: 0.1),
+                                  backgroundImage: specialist.avatarUrl != null
+                                      ? NetworkImage(specialist.avatarUrl!)
                                       : null,
-                                  child: specialist['avatar'] == null
+                                  child: specialist.avatarUrl == null
                                       ? Text(
-                                          specialist['name'][0].toUpperCase(),
+                                          specialist.name.isNotEmpty ? specialist.name[0].toUpperCase() : 'S',
                                           style: TextStyle(
                                             color: AppConstants.primaryColor,
                                             fontWeight: FontWeight.bold,
@@ -480,7 +482,7 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen>
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        specialist['name'],
+                                        specialist.name,
                                         style: TextStyle(
                                           fontSize: 16,
                                           fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
@@ -499,7 +501,7 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen>
                                           ),
                                           const SizedBox(width: 4),
                                           Text(
-                                            '${specialist['rating']} (${specialist['reviews']} отзывов)',
+                                            '${specialist.rating ?? 0.0} (${specialist.totalOrders ?? 0} заказов)',
                                             style: TextStyle(
                                               color: AppConstants.textSecondary,
                                               fontSize: 14,
@@ -509,7 +511,7 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen>
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        '${specialist['pricePerHour']} сум/час',
+                                        '${specialist.pricePerHour ?? 0} сум/час',
                                         style: TextStyle(
                                           color: AppConstants.primaryColor,
                                           fontWeight: FontWeight.w600,

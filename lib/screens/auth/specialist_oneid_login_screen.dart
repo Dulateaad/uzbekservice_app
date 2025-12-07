@@ -355,8 +355,9 @@ class _SpecialistOneIdLoginScreenState
       // Создаём или обновляем пользователя в Firestore
       final user = await _createOrUpdateUser(result.user!, result.accessToken!);
 
-      // Сохраняем в провайдере авторизации
-      ref.read(firestoreAuthProvider.notifier).setUser(user);
+      // Обновляем состояние провайдера авторизации
+      final authState = ref.read(firestoreAuthProvider);
+      ref.read(firestoreAuthProvider.notifier).state = authState.copyWith(user: user);
 
       // Переходим на главный экран
       if (mounted) {
@@ -374,19 +375,18 @@ class _SpecialistOneIdLoginScreenState
     OneIdUser oneIdUser,
     String accessToken,
   ) async {
-    // Проверяем, существует ли пользователь с таким ПИНФЛ
-    final existingUsers = await FirestoreService.getUsersByPin(oneIdUser.pin ?? '');
+    // Проверяем, существует ли пользователь по номеру телефона
+    final existingUser = await FirestoreService.getUserByPhone(oneIdUser.phoneNumber ?? '');
 
     FirestoreUser user;
 
-    if (existingUsers.isNotEmpty) {
+    if (existingUser != null) {
       // Обновляем существующего пользователя
-      user = existingUsers.first.copyWith(
-        name: oneIdUser.fullNameLatin ?? oneIdUser.fullNameCyrillic,
-        email: oneIdUser.email,
-        phone: oneIdUser.phone,
-        isOnline: true,
-        lastActive: DateTime.now(),
+      user = existingUser.copyWith(
+        name: oneIdUser.fullNameLatin ?? oneIdUser.fullNameCyrillic ?? existingUser.name,
+        email: oneIdUser.email ?? existingUser.email,
+        phoneNumber: oneIdUser.phoneNumber ?? existingUser.phoneNumber,
+        updatedAt: DateTime.now(),
       );
 
       await FirestoreService.updateUser(user);
@@ -394,14 +394,12 @@ class _SpecialistOneIdLoginScreenState
       // Создаём нового пользователя
       user = FirestoreUser(
         id: '', // Будет заполнено в createUser
+        phoneNumber: oneIdUser.phoneNumber ?? '',
         name: oneIdUser.fullNameLatin ?? oneIdUser.fullNameCyrillic ?? 'Специалист',
+        userType: 'specialist',
         email: oneIdUser.email,
-        phone: oneIdUser.phone ?? '',
-        role: 'specialist',
-        oneIdPin: oneIdUser.pin,
+        oneIdSub: null, // OneID sub будет сохранен отдельно если нужно
         isVerified: true, // OneID пользователи автоматически верифицированы
-        isOnline: true,
-        lastActive: DateTime.now(),
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );

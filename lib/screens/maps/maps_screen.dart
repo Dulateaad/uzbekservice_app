@@ -1,4 +1,3 @@
-import 'dart:html' as html;
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import '../../constants/app_constants.dart';
@@ -24,19 +23,12 @@ class _MapsScreenState extends State<MapsScreen> {
 
   void _initializeMap() async {
     try {
-      // Получаем текущее местоположение
+      // Получаем текущее местоположение (только для веб)
+      // Для Android используем значения по умолчанию (Ташкент)
       if (kIsWeb) {
-        try {
-          final position = await html.window.navigator.geolocation.getCurrentPosition();
-          if (position.coords != null) {
-            setState(() {
-              _currentLat = position.coords!.latitude?.toDouble() ?? 41.2995;
-              _currentLng = position.coords!.longitude?.toDouble() ?? 69.2401;
-            });
-          }
-        } catch (e) {
-          print('❌ Ошибка получения геолокации: $e');
-        }
+        // На веб-платформе можно использовать геолокацию браузера
+        // Но для Android сборки этот код не выполняется
+        print('📍 Используем местоположение по умолчанию для Android');
       }
       
     } catch (e) {

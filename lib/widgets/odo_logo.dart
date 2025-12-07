@@ -15,12 +15,20 @@ class OdoLogo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Пробуем сначала PNG, потом JPG
     return Image.asset(
-      'assets/images/logo.jpg',
+      'assets/images/logo.png',
       width: width,
       height: height,
       fit: fit,
       errorBuilder: (context, error, stackTrace) {
+        // Если PNG не найден, пробуем JPG
+        return Image.asset(
+          'assets/images/logo.jpg',
+          width: width,
+          height: height,
+          fit: fit,
+          errorBuilder: (context, error, stackTrace) {
         // Fallback на старый текстовый логотип, если изображение не загрузится
         return Container(
           width: width,
@@ -56,6 +64,8 @@ class OdoLogo extends StatelessWidget {
               ),
             ],
           ),
+        );
+          },
         );
       },
     );

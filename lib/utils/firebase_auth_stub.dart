@@ -1,7 +1,8 @@
 // Заглушки для Firebase Auth типов
-// Используется для совместимости при миграции на Supabase
+// Используется для совместимости с Firebase Auth
 
-import '../config/supabase_config.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
+import '../config/firebase_config.dart';
 
 // Заглушка для User из Firebase Auth
 class User {
@@ -21,18 +22,15 @@ class User {
     this.emailVerified = false,
   });
 
-  // Конвертация из Supabase User
-  factory User.fromSupabase(dynamic supabaseUser) {
-    if (supabaseUser == null) {
-      throw Exception('User is null');
-    }
+  // Конвертация из Firebase User
+  factory User.fromFirebase(firebase_auth.User firebaseUser) {
     return User(
-      uid: supabaseUser.id ?? '',
-      email: supabaseUser.email,
-      phoneNumber: supabaseUser.phone,
-      displayName: supabaseUser.userMetadata?['name'],
-      photoURL: supabaseUser.userMetadata?['avatar'],
-      emailVerified: supabaseUser.emailConfirmedAt != null,
+      uid: firebaseUser.uid,
+      email: firebaseUser.email,
+      phoneNumber: firebaseUser.phoneNumber,
+      displayName: firebaseUser.displayName,
+      photoURL: firebaseUser.photoURL,
+      emailVerified: firebaseUser.emailVerified,
     );
   }
 }
@@ -43,13 +41,13 @@ class FirebaseAuth {
   FirebaseAuth._();
 
   User? get currentUser {
-    final supabaseUser = SupabaseConfig.currentUser;
-    if (supabaseUser == null) return null;
-    return User.fromSupabase(supabaseUser);
+    final firebaseUser = FirebaseConfig.currentUser;
+    if (firebaseUser == null) return null;
+    return User.fromFirebase(firebaseUser);
   }
 
   Future<void> signOut() async {
-    await SupabaseConfig.client.auth.signOut();
+    await FirebaseConfig.auth.signOut();
   }
 }
 

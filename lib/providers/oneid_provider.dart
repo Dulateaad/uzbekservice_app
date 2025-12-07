@@ -1,12 +1,15 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:uni_links/uni_links.dart';
+// import 'package:uni_links/uni_links.dart'; // Удален устаревший пакет
 import '../services/oneid_service.dart';
 import '../config/oneid_config.dart';
 
 /// Провайдер для обработки OneID deep links
+/// Временно отключен из-за удаления uni_links
+/// TODO: Использовать app_links или другой пакет для deep links
 final oneIdDeepLinkProvider = StreamProvider<String?>((ref) {
-  return linkStream;
+  // return linkStream; // Временно отключено
+  return Stream<String?>.value(null);
 });
 
 /// Провайдер для OneID сервиса
@@ -32,28 +35,32 @@ class OneIdDeepLinkListener {
   OneIdDeepLinkListener(this.ref);
 
   void init() {
+    // TODO: Реализовать с использованием app_links или другого пакета
+    // Временно отключено из-за удаления uni_links
     // Обработка начального deep link (если приложение открылось по ссылке)
-    _handleInitialLink();
+    // _handleInitialLink();
 
     // Подписка на последующие deep links
-    _linkSubscription = linkStream.listen((String? link) {
-      if (link != null) {
-        _handleDeepLink(link);
-      }
-    }, onError: (err) {
-      print('❌ Ошибка deep link: $err');
-    });
+    // _linkSubscription = linkStream.listen((String? link) {
+    //   if (link != null) {
+    //     _handleDeepLink(link);
+    //   }
+    // }, onError: (err) {
+    //   print('❌ Ошибка deep link: $err');
+    // });
   }
 
   Future<void> _handleInitialLink() async {
-    try {
-      final initialLink = await getInitialLink();
-      if (initialLink != null) {
-        _handleDeepLink(initialLink);
-      }
-    } catch (e) {
-      print('❌ Ошибка получения начального deep link: $e');
-    }
+    // TODO: Реализовать с использованием app_links или другого пакета
+    // Временно отключено из-за удаления uni_links
+    // try {
+    //   final initialLink = await getInitialLink();
+    //   if (initialLink != null) {
+    //     _handleDeepLink(initialLink);
+    //   }
+    // } catch (e) {
+    //   print('❌ Ошибка получения начального deep link: $e');
+    // }
   }
 
   void _handleDeepLink(String link) async {

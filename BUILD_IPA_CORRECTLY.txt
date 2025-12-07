@@ -1,0 +1,52 @@
+===================================================================
+  ⚠️  STOP USING ARCHIVE - USE THIS INSTEAD  ⚠️
+===================================================================
+
+You keep getting sandbox errors because you're using Archive.
+STOP doing that and use this instead:
+
+===================================================================
+  THE CORRECT COMMAND:
+===================================================================
+
+    cd ~/uzbekservice_app
+    flutter build ipa --release
+
+===================================================================
+  OR USE THE SCRIPT:
+===================================================================
+
+    cd ~/uzbekservice_app
+    ./DO_THIS_NOW.sh
+
+===================================================================
+  WHAT NOT TO DO:
+===================================================================
+
+  ❌ DO NOT run: build_ios_release.sh
+  ❌ DO NOT run: flutter build ios --release (then Archive)
+  ❌ DO NOT use: Xcode → Product → Archive
+
+===================================================================
+  WHY THIS WORKS:
+===================================================================
+
+  ✅ flutter build ipa = Creates IPA directly (NO Archive!)
+  ✅ Bypasses Xcode Archive completely
+  ✅ Avoids all sandbox restrictions
+  ✅ Works on macOS 26.1
+
+===================================================================
+  AFTER BUILD:
+===================================================================
+
+  1. Find IPA: ls -lh build/ios/ipa/*.ipa
+  2. Upload using Transporter app
+
+===================================================================
+
+RUN THIS NOW:
+  cd ~/uzbekservice_app && flutter build ipa --release
+
+===================================================================
+

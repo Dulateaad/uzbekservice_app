@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/firestore_models.dart';
@@ -39,6 +40,12 @@ import '../screens/profile/edit_profile_screen.dart';
 import '../screens/profile/fixed_edit_profile_screen.dart';
 import '../screens/profile/favorites_screen.dart';
 import '../screens/profile/payment_methods_screen.dart';
+import '../screens/analytics/city_ratings_screen.dart';
+import '../screens/payment/payment_selection_screen.dart';
+import '../screens/payment/click_payment_screen.dart';
+import '../screens/payment/payment_success_screen.dart';
+import '../screens/legal/privacy_policy_screen.dart';
+import '../screens/legal/terms_of_service_screen.dart';
 
 class AppRouter {
   static final GoRouter router = GoRouter(
@@ -92,8 +99,22 @@ class AppRouter {
       GoRoute(
         path: '/auth/sms',
         builder: (context, state) {
-          final phoneNumber = state.extra as String?;
-          return SmsVerificationScreen(phoneNumber: phoneNumber ?? '');
+          // Поддерживаем как старый формат (String), так и новый (Map)
+          String phoneNumber = '';
+          String? verificationId;
+          
+          if (state.extra is Map) {
+            final extra = state.extra as Map<String, dynamic>;
+            phoneNumber = extra['phoneNumber'] as String? ?? '';
+            verificationId = extra['verificationId'] as String?;
+          } else if (state.extra is String) {
+            phoneNumber = state.extra as String;
+          }
+          
+          return SmsVerificationScreen(
+            phoneNumber: phoneNumber,
+            verificationId: verificationId,
+          );
         },
       ),
       GoRoute(
@@ -208,13 +229,6 @@ class AppRouter {
                 );
               },
             ),
-          GoRoute(
-            path: 'specialist/:specialistId',
-            builder: (context, state) {
-              final specialistId = state.pathParameters['specialistId']!;
-              return SpecialistDetailScreen(specialistId: specialistId);
-            },
-          ),
           
           // Orders
           GoRoute(
@@ -274,39 +288,318 @@ class AppRouter {
                 path: 'payment-methods',
                 builder: (context, state) => const PaymentMethodsScreen(),
               ),
+              GoRoute(
+                path: 'analytics-city-ratings',
+                builder: (context, state) => const CityRatingsScreen(),
+              ),
             ],
+          ),
+          
+          // Legal
+          GoRoute(
+            path: 'privacy-policy',
+            builder: (context, state) => const PrivacyPolicyScreen(),
+          ),
+          GoRoute(
+            path: 'terms-of-service',
+            builder: (context, state) => const TermsOfServiceScreen(),
           ),
         ],
       ),
+      
+      // Payment Routes
+      GoRoute(
+        path: '/payment/select',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return PaymentSelectionScreen(
+            orderId: extra?['orderId'] ?? '',
+            amount: (extra?['amount'] ?? 0).toDouble(),
+            specialistName: extra?['specialistName'] ?? '',
+          );
+        },
+      ),
+      GoRoute(
+        path: '/payment/click',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return ClickPaymentScreen(
+            orderId: extra?['orderId'] ?? '',
+            amount: (extra?['amount'] ?? 0).toDouble(),
+            specialistName: extra?['specialistName'] ?? '',
+          );
+        },
+      ),
+      GoRoute(
+        path: '/payment/success',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return PaymentSuccessScreen(
+            orderId: extra?['orderId'] ?? '',
+            paymentMethod: extra?['paymentMethod'] ?? 'click',
+            amount: extra?['amount']?.toDouble(),
+          );
+        },
+      ),
+      
+      // Orders direct route
+      GoRoute(
+        path: '/orders/:orderId',
+        builder: (context, state) {
+          final orderId = state.pathParameters['orderId']!;
+          return OrderDetailScreen(orderId: orderId);
+        },
+      ),
+      
+      // Specialist direct route (для совместимости)
+      GoRoute(
+        path: '/specialist/:specialistId',
+        builder: (context, state) {
+          final specialistId = state.pathParameters['specialistId']!;
+          return EnhancedSpecialistDetailScreen(specialistId: specialistId);
+        },
+      ),
+      
+      // Chat direct route
+      GoRoute(
+        path: '/chat/:chatId',
+        builder: (context, state) {
+          final chatId = state.pathParameters['chatId']!;
+          return ChatScreen(chatId: chatId);
+        },
+      ),
     ],
-    errorBuilder: (context, state) => Scaffold(
-      body: Center(
+    errorBuilder: (context, state) => _ErrorScreen(state: state),
+  );
+}
+
+/// Экран ошибки с возможностью копирования
+class _ErrorScreen extends StatelessWidget {
+  final GoRouterState state;
+
+  const _ErrorScreen({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    final errorInfo = '''
+🚨 ОШИБКА НАВИГАЦИИ
+
+📍 Путь: ${state.uri.path}
+🔗 Полный URL: ${state.uri}
+📦 Query параметры: ${state.uri.queryParameters}
+🏷️ Path параметры: ${state.pathParameters}
+📝 Extra данные: ${state.extra}
+⚠️ Ошибка: ${state.error}
+
+📱 Время: ${DateTime.now()}
+''';
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F5F5),
+      appBar: AppBar(
+        backgroundColor: Colors.red.shade600,
+        title: const Text(
+          'Ошибка',
+          style: TextStyle(color: Colors.white),
+        ),
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.home, color: Colors.white),
+          onPressed: () => context.go('/home'),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.copy, color: Colors.white),
+            onPressed: () => _copyError(context, errorInfo),
+            tooltip: 'Копировать ошибку',
+          ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Icon(
-              Icons.error_outline,
-              size: 64,
-              color: Colors.red,
+            // Иконка ошибки
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.error_outline,
+                size: 64,
+                color: Colors.red.shade400,
+              ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
+            
+            // Заголовок
             Text(
               'Страница не найдена',
-              style: Theme.of(context).textTheme.headlineSmall,
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: Colors.red.shade700,
+              ),
+              textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
+            
             Text(
-              'Путь: ${state.uri.path}',
-              style: Theme.of(context).textTheme.bodyMedium,
+              'Запрошенный путь не существует',
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                color: Colors.grey.shade600,
+              ),
+              textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 16),
-            ElevatedButton(
+            const SizedBox(height: 32),
+            
+            // Детали ошибки
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.info_outline, 
+                        size: 20, 
+                        color: Colors.grey.shade600,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Детали ошибки',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey.shade700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 24),
+                  _buildInfoRow('Путь', state.uri.path),
+                  _buildInfoRow('Полный URL', state.uri.toString()),
+                  if (state.uri.queryParameters.isNotEmpty)
+                    _buildInfoRow('Query', state.uri.queryParameters.toString()),
+                  if (state.pathParameters.isNotEmpty)
+                    _buildInfoRow('Path параметры', state.pathParameters.toString()),
+                  if (state.extra != null)
+                    _buildInfoRow('Extra', state.extra.toString()),
+                  if (state.error != null)
+                    _buildInfoRow('Ошибка', state.error.toString()),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            
+            // Кнопка копирования
+            ElevatedButton.icon(
+              onPressed: () => _copyError(context, errorInfo),
+              icon: const Icon(Icons.copy),
+              label: const Text('Скопировать ошибку'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            
+            // Кнопка на главную
+            ElevatedButton.icon(
               onPressed: () => context.go('/home'),
-              child: const Text('На главную'),
+              icon: const Icon(Icons.home),
+              label: const Text('На главную'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            
+            // Кнопка назад
+            OutlinedButton.icon(
+              onPressed: () {
+                if (Navigator.canPop(context)) {
+                  Navigator.pop(context);
+                } else {
+                  context.go('/home');
+                }
+              },
+              icon: const Icon(Icons.arrow_back),
+              label: const Text('Назад'),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
             ),
           ],
         ),
       ),
-    ),
-  );
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey.shade500,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 4),
+          SelectableText(
+            value,
+            style: const TextStyle(
+              fontSize: 14,
+              fontFamily: 'monospace',
+              color: Colors.black87,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _copyError(BuildContext context, String errorInfo) {
+    Clipboard.setData(ClipboardData(text: errorInfo));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.white),
+            SizedBox(width: 12),
+            Text('Ошибка скопирована в буфер обмена'),
+          ],
+        ),
+        backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
 }

@@ -1,11 +1,10 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:image_picker/image_picker.dart';
 import '../../constants/app_constants.dart';
-import '../../providers/auth_provider.dart';
-import '../../services/firebase_storage_service.dart';
-import '../../services/firebase_firestore_service.dart';
+import '../../providers/firestore_auth_provider.dart';
+import '../../services/storage_service.dart';
+import '../../services/firestore_service.dart';
 import '../../widgets/ios_liquid_button.dart';
 
 class FixedEditProfileScreen extends ConsumerStatefulWidget {
@@ -23,13 +22,15 @@ class _FixedEditProfileScreenState extends ConsumerState<FixedEditProfileScreen>
   late TextEditingController _descriptionController;
   late TextEditingController _pricePerHourController;
   
-  XFile? _pickedImage;
+  File? _pickedImage;
   bool _isLoading = false;
+  double _uploadProgress = 0.0;
 
   @override
   void initState() {
     super.initState();
-    final user = ref.read(authProvider).user;
+    final authState = ref.read(firestoreAuthProvider);
+    final user = authState.user;
     _nameController = TextEditingController(text: user?.name ?? '');
     _emailController = TextEditingController(text: user?.email ?? '');
     _categoryController = TextEditingController(text: user?.category ?? '');
@@ -48,12 +49,23 @@ class _FixedEditProfileScreenState extends ConsumerState<FixedEditProfileScreen>
   }
 
   Future<void> _pickImage() async {
-    final ImagePicker picker = ImagePicker();
-    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
-    if (image != null) {
-      setState(() {
-        _pickedImage = image;
-      });
+    try {
+      final imageFile = await ImagePickerService.pickImageFromGallery();
+      if (imageFile != null) {
+        setState(() {
+          _pickedImage = imageFile;
+          _uploadProgress = 0.0;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Ошибка выбора изображения: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -62,26 +74,42 @@ class _FixedEditProfileScreenState extends ConsumerState<FixedEditProfileScreen>
 
     setState(() {
       _isLoading = true;
+      _uploadProgress = 0.0;
     });
 
     try {
-      final authState = ref.read(authProvider);
+      final authState = ref.read(firestoreAuthProvider);
       final currentUser = authState.user;
 
       if (currentUser == null) {
-        throw 'Пользователь не авторизован';
+        throw Exception('Пользователь не авторизован');
       }
 
-      String? avatarUrl = currentUser.avatar;
+      String? avatarUrl = currentUser.avatarUrl;
       
       // Загружаем фото если выбрано
       if (_pickedImage != null) {
-        print('Загружаем фото в Firebase Storage...');
-        avatarUrl = await FirebaseStorageService().uploadFile(
-          File(_pickedImage!.path),
-          'avatars/${currentUser.id}',
+        print('📤 Загружаем фото в Firebase Storage...');
+        
+        // Загружаем с отслеживанием прогресса
+        avatarUrl = await StorageService.uploadWithProgress(
+          'avatars/${currentUser.id}/avatar_${DateTime.now().millisecondsSinceEpoch}.jpg',
+          _pickedImage!,
+          onProgress: (progress) {
+            if (mounted) {
+              setState(() {
+                _uploadProgress = progress;
+              });
+            }
+          },
         );
-        print('Фото загружено: $avatarUrl');
+        
+        // Удаляем старый аватар, если он есть
+        if (currentUser.avatarUrl != null && currentUser.avatarUrl != avatarUrl) {
+          await StorageService.deleteUserAvatar(currentUser.id, currentUser.avatarUrl);
+        }
+        
+        print('✅ Фото загружено: $avatarUrl');
       }
 
       // Создаем обновленного пользователя
@@ -91,17 +119,17 @@ class _FixedEditProfileScreenState extends ConsumerState<FixedEditProfileScreen>
         category: _categoryController.text.isEmpty ? null : _categoryController.text,
         description: _descriptionController.text.isEmpty ? null : _descriptionController.text,
         pricePerHour: _pricePerHourController.text.isEmpty ? null : double.tryParse(_pricePerHourController.text),
-        avatar: avatarUrl,
+        avatarUrl: avatarUrl,
         updatedAt: DateTime.now(),
       );
 
-      print('Обновляем пользователя в Firestore...');
+      print('📝 Обновляем пользователя в Firestore...');
       // Обновляем пользователя в Firestore
-      await FirebaseFirestoreService().updateUser(updatedUser);
+      await FirestoreService.updateUser(updatedUser);
 
-      print('Обновляем состояние в AuthProvider...');
-      // Обновляем состояние в AuthProvider
-      ref.read(authProvider.notifier).state = authState.copyWith(user: updatedUser);
+      print('🔄 Обновляем состояние в провайдере...');
+      // Обновляем состояние в провайдере
+      ref.read(firestoreAuthProvider.notifier).state = authState.copyWith(user: updatedUser);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -113,7 +141,7 @@ class _FixedEditProfileScreenState extends ConsumerState<FixedEditProfileScreen>
         Navigator.of(context).pop();
       }
     } catch (e) {
-      print('Ошибка обновления профиля: $e');
+      print('❌ Ошибка обновления профиля: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -126,6 +154,7 @@ class _FixedEditProfileScreenState extends ConsumerState<FixedEditProfileScreen>
       if (mounted) {
         setState(() {
           _isLoading = false;
+          _uploadProgress = 0.0;
         });
       }
     }
@@ -133,7 +162,8 @@ class _FixedEditProfileScreenState extends ConsumerState<FixedEditProfileScreen>
 
   @override
   Widget build(BuildContext context) {
-    final user = ref.watch(authProvider).user;
+    final authState = ref.watch(firestoreAuthProvider);
+    final user = authState.user;
 
     return Scaffold(
       appBar: AppBar(
@@ -154,21 +184,34 @@ class _FixedEditProfileScreenState extends ConsumerState<FixedEditProfileScreen>
                   onTap: _pickImage,
                   child: Stack(
                     children: [
-                      CircleAvatar(
-                        radius: 60,
-                        backgroundColor: AppConstants.primaryColor.withOpacity(0.1),
-                        backgroundImage: _pickedImage != null
-                            ? FileImage(File(_pickedImage!.path))
-                            : (user?.avatar != null 
-                                ? NetworkImage(user!.avatar!) 
-                                : null) as ImageProvider?,
-                        child: _pickedImage == null && user?.avatar == null
-                            ? const Icon(
-                                Icons.person,
-                                size: 60,
-                                color: Colors.grey,
-                              )
-                            : null,
+                      Stack(
+                        children: [
+                          CircleAvatar(
+                            radius: 60,
+                            backgroundColor: AppConstants.primaryColor.withValues(alpha: 0.1),
+                            backgroundImage: _pickedImage != null
+                                ? FileImage(_pickedImage!)
+                                : (user?.avatarUrl != null 
+                                    ? NetworkImage(user!.avatarUrl!) 
+                                    : null) as ImageProvider?,
+                            child: _pickedImage == null && user?.avatarUrl == null
+                                ? const Icon(
+                                    Icons.person,
+                                    size: 60,
+                                    color: Colors.grey,
+                                  )
+                                : null,
+                          ),
+                          if (_isLoading && _uploadProgress > 0)
+                            Positioned.fill(
+                              child: CircularProgressIndicator(
+                                value: _uploadProgress,
+                                strokeWidth: 3,
+                                backgroundColor: Colors.white.withValues(alpha: 0.3),
+                                valueColor: AlwaysStoppedAnimation<Color>(AppConstants.primaryColor),
+                              ),
+                            ),
+                        ],
                       ),
                       Positioned(
                         bottom: 0,

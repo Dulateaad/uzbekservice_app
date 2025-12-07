@@ -1,7 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import '../models/user_model.dart';
-import '../services/firebase_auth_service.dart';
 import '../services/firebase_firestore_service.dart';
 import '../services/simple_sms_service.dart';
 
@@ -38,7 +36,6 @@ class AuthState {
 }
 
 class AuthNotifier extends StateNotifier<AuthState> {
-  final FirebaseAuthService _authService = FirebaseAuthService();
   final FirebaseFirestoreService _firestoreService = FirebaseFirestoreService();
   final SimpleSmsService _smsService = SimpleSmsService();
 

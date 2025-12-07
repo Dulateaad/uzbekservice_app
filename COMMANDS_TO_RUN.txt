@@ -1,0 +1,23 @@
+Выполните эти команды в терминале (скопируйте и вставьте по одной):
+
+sudo chown -R $(whoami) ~/XcodeDerivedData/
+
+sudo chmod -R u+w ~/XcodeDerivedData/
+
+sudo chown -R $(whoami) ~/uzbekservice_app/ios/
+
+sudo chmod -R u+w ~/uzbekservice_app/ios/
+
+sudo chown -R $(whoami) ~/uzbekservice_app/build/
+
+sudo chmod -R u+w ~/uzbekservice_app/build/
+
+ИЛИ выполните скрипт:
+
+./fix_permissions_clean.sh
+
+После выполнения:
+1. Полностью закройте Xcode (Cmd + Q)
+2. Откройте проект заново
+3. Попробуйте Archive снова
+

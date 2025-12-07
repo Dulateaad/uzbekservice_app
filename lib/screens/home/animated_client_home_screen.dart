@@ -274,7 +274,7 @@ class _AnimatedClientHomeScreenState extends ConsumerState<AnimatedClientHomeScr
                                     // TODO: Показать уведомления
                                   },
                                   icon: const Icon(
-                                    Icons.notifications_outline,
+                                    Icons.notifications_outlined,
                                     color: Colors.white,
                                     size: 28,
                                   ),
@@ -402,7 +402,7 @@ class _AnimatedClientHomeScreenState extends ConsumerState<AnimatedClientHomeScr
           offset: Offset(0, 20 * (1 - value)),
           child: Opacity(
             opacity: value,
-            child: const BannerCarousel(),
+            child: BannerCarousel(banners: const []),
           ),
         );
       },
@@ -457,9 +457,9 @@ class _AnimatedClientHomeScreenState extends ConsumerState<AnimatedClientHomeScr
                   height: 120,
                   child: ListView.builder(
                     scrollDirection: Axis.horizontal,
-                    itemCount: TestDataService.categories.length,
+                    itemCount: AppConstants.serviceCategories.length,
                     itemBuilder: (context, index) {
-                      final category = TestDataService.categories[index];
+                      final category = AppConstants.serviceCategories[index];
                       return TweenAnimationBuilder<double>(
                         duration: Duration(milliseconds: 400 + (index * 100)),
                         tween: Tween(begin: 0.0, end: 1.0),
@@ -471,7 +471,10 @@ class _AnimatedClientHomeScreenState extends ConsumerState<AnimatedClientHomeScr
                               child: Padding(
                                 padding: const EdgeInsets.only(right: 16),
                                 child: CategoryCard(
-                                  category: category,
+                                  id: category['id'] as String,
+                                  name: category['name'] as String,
+                                  icon: category['icon'] as IconData,
+                                  color: category['color'] as Color,
                                   onTap: () {
                                     context.go('/home/category/${category['id']}');
                                   },
@@ -553,9 +556,9 @@ class _AnimatedClientHomeScreenState extends ConsumerState<AnimatedClientHomeScr
                               child: Padding(
                                 padding: const EdgeInsets.only(right: 16),
                                 child: TopSpecialistCard(
-                                  specialist: TestDataService.topSpecialists[index],
+                                  specialist: TestDataService.getTestSpecialists()[index],
                                   onTap: () {
-                                    context.go('/home/specialist/${TestDataService.topSpecialists[index]['id']}');
+                                    context.go('/home/specialist/${TestDataService.getTestSpecialists()[index].id}');
                                   },
                                 ),
                               ),
@@ -620,39 +623,48 @@ class _AnimatedClientHomeScreenState extends ConsumerState<AnimatedClientHomeScr
               scale: 0.9 + (0.1 * value),
               child: Opacity(
                 opacity: value,
-                child: specialistsAsync.when(
-                  data: (specialists) => ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: specialists.length > 3 ? 3 : specialists.length,
-                    itemBuilder: (context, index) {
-                      final specialist = specialists[index];
-                      return TweenAnimationBuilder<double>(
-                        duration: Duration(milliseconds: 600 + (index * 100)),
-                        tween: Tween(begin: 0.0, end: 1.0),
-                        builder: (context, value, child) {
-                          return Transform.translate(
-                            offset: Offset(0, 30 * (1 - value)),
-                            child: Opacity(
-                              opacity: value,
-                              child: Padding(
-                                padding: const EdgeInsets.only(bottom: 16),
-                                child: SpecialistCard(
-                                  specialist: specialist,
-                                  onTap: () {
-                                    context.go('/home/specialist/${specialist.id}');
-                                  },
-                                ),
+                child: specialistsAsync.isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : specialistsAsync.error != null
+                        ? Center(child: Text('Ошибка загрузки: ${specialistsAsync.error}'))
+                        : specialistsAsync.specialists.isEmpty
+                            ? const Center(child: Text('Нет специалистов'))
+                            : ListView.builder(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                itemCount: specialistsAsync.specialists.length > 3 ? 3 : specialistsAsync.specialists.length,
+                                itemBuilder: (context, index) {
+                                  final specialist = specialistsAsync.specialists[index];
+                                  return TweenAnimationBuilder<double>(
+                                    duration: Duration(milliseconds: 600 + (index * 100)),
+                                    tween: Tween(begin: 0.0, end: 1.0),
+                                    builder: (context, value, child) {
+                                      return Transform.translate(
+                                        offset: Offset(0, 30 * (1 - value)),
+                                        child: Opacity(
+                                          opacity: value,
+                                          child: Padding(
+                                            padding: const EdgeInsets.only(bottom: 16),
+                                            child: SpecialistCard(
+                                              name: specialist.name,
+                                              category: specialist.category,
+                                              location: specialist.location != null 
+                                                  ? '${specialist.location!['lat']}, ${specialist.location!['lng']}'
+                                                  : null,
+                                              rating: specialist.rating,
+                                              reviewCount: specialist.totalOrders,
+                                              avatarUrl: specialist.avatarUrl,
+                                              onTap: () {
+                                                context.go('/home/specialist/${specialist.id}');
+                                              },
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  );
+                                },
                               ),
-                            ),
-                          );
-                        },
-                      );
-                    },
-                  ),
-                  loading: () => _buildLoadingSpecialists(),
-                  error: (error, stack) => _buildErrorSpecialists(error),
-                ),
               ),
             );
           },

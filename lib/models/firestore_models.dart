@@ -1,4 +1,4 @@
-import '../utils/timestamp_stub.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 // Модель пользователя для Firestore
 class FirestoreUser {
@@ -468,4 +468,25 @@ class FirestoreReview {
       createdAt: (map['createdAt'] as Timestamp).toDate(),
     );
   }
+}
+
+/// Агрегированная статистика рейтинга по городу и нише за период
+class CitySpecialistRating {
+  final String city;
+  final String category; // ниша
+  final String specialistId;
+  final String specialistName;
+  final double averageRating;
+  final int totalReviews;
+  final int totalOrders;
+
+  CitySpecialistRating({
+    required this.city,
+    required this.category,
+    required this.specialistId,
+    required this.specialistName,
+    required this.averageRating,
+    required this.totalReviews,
+    required this.totalOrders,
+  });
 }

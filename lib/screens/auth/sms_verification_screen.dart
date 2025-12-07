@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../constants/app_constants.dart';
@@ -9,10 +10,12 @@ import '../../widgets/odo_logo.dart';
 
 class SmsVerificationScreen extends ConsumerStatefulWidget {
   final String phoneNumber;
+  final String? verificationId;
   
   const SmsVerificationScreen({
     super.key,
     required this.phoneNumber,
+    this.verificationId,
   });
 
   @override
@@ -53,6 +56,15 @@ class _SmsVerificationScreenState extends ConsumerState<SmsVerificationScreen> {
       return false;
     });
   }
+  
+  // Скрывает reCAPTCHA виджет (только для веб)
+  void _hideRecaptcha() {
+    if (!kIsWeb) return;
+    
+    // На не-веб платформах этот метод просто возвращается
+    // Для веб-платформы используем условную компиляцию через отдельный файл
+    // Временно отключено для iOS/Android сборки
+  }
 
   void _verifyCode() async {
     if (!_formKey.currentState!.validate()) return;
@@ -71,8 +83,15 @@ class _SmsVerificationScreenState extends ConsumerState<SmsVerificationScreen> {
       print('🔍 Номер из widget: "${widget.phoneNumber}"');
       print('🔍 Номер из FirestoreAuthProvider: "${authState.currentPhoneNumber}"');
       
-      // Вызываем логин через FirestoreAuthProvider
-      await ref.read(firestoreAuthProvider.notifier).login(phoneNumber, _codeController.text);
+      // Получаем verificationId из widget или из провайдера
+      final verificationId = widget.verificationId;
+      
+      // Вызываем логин через FirestoreAuthProvider с verificationId
+      await ref.read(firestoreAuthProvider.notifier).login(
+        phoneNumber, 
+        _codeController.text,
+        verificationId: verificationId,
+      );
       
       if (mounted) {
         final authState = ref.read(firestoreAuthProvider);
@@ -85,6 +104,11 @@ class _SmsVerificationScreenState extends ConsumerState<SmsVerificationScreen> {
             context.go('/auth/create-profile');
           } else {
             // Пользователь с полным профилем - переходим на главную
+            // Скрываем reCAPTCHA перед переходом (для веб)
+            if (kIsWeb) {
+              _hideRecaptcha();
+            }
+            
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('Успешная авторизация!'),

@@ -1,0 +1,218 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==========
+    
+    // Проверка, что пользователь аутентифицирован
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Получение ID текущего пользователя
+    function currentUserId() {
+      return request.auth.uid;
+    }
+    
+    // Проверка, что пользователь является владельцем документа
+    function isOwner(userId) {
+      return isAuthenticated() && currentUserId() == userId;
+    }
+    
+    // Проверка, что пользователь является специалистом
+    function isSpecialist(userId) {
+      return isAuthenticated() && 
+             exists(/databases/$(database)/documents/users/$(userId)) &&
+             get(/databases/$(database)/documents/users/$(userId)).data.userType == 'specialist';
+    }
+    
+    // Проверка, что пользователь является клиентом
+    function isClient(userId) {
+      return isAuthenticated() && 
+             exists(/databases/$(database)/documents/users/$(userId)) &&
+             get(/databases/$(database)/documents/users/$(userId)).data.userType == 'client';
+    }
+    
+    // ========== КОЛЛЕКЦИЯ ПОЛЬЗОВАТЕЛЕЙ (users) ==========
+    
+    match /users/{userId} {
+      // Разрешаем запросы where() для поиска пользователей по phoneNumber
+      // Это нужно для getUserByPhone() - запросы с where() требуют allow list
+      allow list: if isAuthenticated();
+      
+      // Чтение: пользователь может читать свой профиль или профили специалистов
+      allow read: if isAuthenticated() && (
+        isOwner(userId) || 
+        resource.data.userType == 'specialist'
+      );
+      
+      // Создание: только аутентифицированные пользователи могут создавать свой профиль
+      // userId должен совпадать с Firebase Auth UID
+      allow create: if isAuthenticated() && 
+                     userId == currentUserId() &&
+                     request.resource.data.phoneNumber is string &&
+                     request.resource.data.name is string &&
+                     request.resource.data.userType in ['client', 'specialist'] &&
+                     // ID должен совпадать с userId
+                     (!('id' in request.resource.data) || 
+                      request.resource.data.id == userId);
+      
+      // Обновление: пользователь может обновлять только свой профиль
+      allow update: if isAuthenticated() && 
+                     userId == currentUserId() &&
+                     // Запрещаем изменение userType после создания
+                     (!exists(/databases/$(database)/documents/users/$(userId)) ||
+                      request.resource.data.userType == resource.data.userType) &&
+                     // Запрещаем изменение id
+                     (!('id' in request.resource.data) || 
+                      request.resource.data.id == userId);
+      
+      // Удаление: только владелец может удалить свой профиль
+      allow delete: if isAuthenticated() && isOwner(userId);
+      
+      // ========== ПОДКОЛЛЕКЦИЯ УСЛУГ (users/{userId}/services) ==========
+      
+      match /services/{serviceId} {
+        // Чтение: все могут читать активные услуги специалистов
+        allow read: if isAuthenticated() && 
+                      get(/databases/$(database)/documents/users/$(userId)).data.userType == 'specialist';
+        
+        // Создание: только специалист может создавать свои услуги
+        allow create: if isAuthenticated() && 
+                       isSpecialist(userId) &&
+                       request.resource.data.specialistId == userId &&
+                       request.resource.data.name is string &&
+                       request.resource.data.price is number &&
+                       request.resource.data.durationMinutes is number;
+        
+        // Обновление: только специалист может обновлять свои услуги
+        allow update: if isAuthenticated() && 
+                       isSpecialist(userId) &&
+                       resource.data.specialistId == userId;
+        
+        // Удаление: только специалист может удалять свои услуги
+        allow delete: if isAuthenticated() && 
+                       isSpecialist(userId) &&
+                       resource.data.specialistId == userId;
+      }
+    }
+    
+    // ========== КОЛЛЕКЦИЯ ЗАКАЗОВ (orders) ==========
+    
+    match /orders/{orderId} {
+      // Чтение: клиент и специалист могут читать свои заказы
+      allow read: if isAuthenticated() && (
+        resource.data.clientId == currentUserId() ||
+        resource.data.specialistId == currentUserId()
+      );
+      
+      // Создание: только клиенты могут создавать заказы
+      allow create: if isAuthenticated() && 
+                     isClient(currentUserId()) &&
+                     request.resource.data.clientId == currentUserId() &&
+                     request.resource.data.specialistId is string &&
+                     request.resource.data.status == 'pending' &&
+                     request.resource.data.price is number &&
+                     request.resource.data.scheduledDate is timestamp;
+      
+      // Обновление: клиент и специалист могут обновлять заказы
+      allow update: if isAuthenticated() && (
+        // Клиент может обновлять статус на 'cancelled'
+        (resource.data.clientId == currentUserId() && 
+         request.resource.data.status == 'cancelled' &&
+         resource.data.status != 'completed') ||
+        // Специалист может обновлять статус на 'accepted', 'in_progress', 'completed'
+        (resource.data.specialistId == currentUserId() && 
+         request.resource.data.status in ['accepted', 'in_progress', 'completed'] &&
+         request.resource.data.status != resource.data.status)
+      ) &&
+      // Запрещаем изменение clientId и specialistId
+      request.resource.data.clientId == resource.data.clientId &&
+      request.resource.data.specialistId == resource.data.specialistId;
+      
+      // Удаление: запрещено (заказы должны оставаться в истории)
+      allow delete: if false;
+    }
+    
+    // ========== КОЛЛЕКЦИЯ ОТЗЫВОВ (reviews) ==========
+    
+    match /reviews/{reviewId} {
+      // Чтение: все могут читать отзывы
+      allow read: if isAuthenticated();
+      
+      // Создание: только клиенты могут создавать отзывы на свои завершенные заказы
+      allow create: if isAuthenticated() && 
+                     isClient(currentUserId()) &&
+                     request.resource.data.clientId == currentUserId() &&
+                     request.resource.data.rating is number &&
+                     request.resource.data.rating >= 1 &&
+                     request.resource.data.rating <= 5 &&
+                     request.resource.data.comment is string &&
+                     // Проверяем, что заказ существует и завершен
+                     exists(/databases/$(database)/documents/orders/$(request.resource.data.orderId)) &&
+                     get(/databases/$(database)/documents/orders/$(request.resource.data.orderId)).data.status == 'completed';
+      
+      // Обновление: только автор может обновлять свой отзыв
+      allow update: if isAuthenticated() && 
+                     resource.data.clientId == currentUserId() &&
+                     request.resource.data.rating is number &&
+                     request.resource.data.rating >= 1 &&
+                     request.resource.data.rating <= 5;
+      
+      // Удаление: только автор может удалить свой отзыв
+      allow delete: if isAuthenticated() && 
+                     resource.data.clientId == currentUserId();
+    }
+    
+    // ========== КОЛЛЕКЦИЯ ЧАТОВ (chats) ==========
+    
+    match /chats/{chatId} {
+      // Чтение: только участники чата могут читать
+      allow read: if isAuthenticated() && (
+        resource.data.clientId == currentUserId() ||
+        resource.data.specialistId == currentUserId()
+      );
+      
+      // Создание: создается автоматически при создании заказа
+      allow create: if isAuthenticated() && (
+        request.resource.data.clientId == currentUserId() ||
+        request.resource.data.specialistId == currentUserId()
+      );
+      
+      // Обновление: только участники могут обновлять
+      allow update: if isAuthenticated() && (
+        resource.data.clientId == currentUserId() ||
+        resource.data.specialistId == currentUserId()
+      );
+      
+      // Удаление: запрещено
+      allow delete: if false;
+      
+      // ========== ПОДКОЛЛЕКЦИЯ СООБЩЕНИЙ (chats/{chatId}/messages) ==========
+      
+      match /messages/{messageId} {
+        // Чтение: только участники чата могут читать сообщения
+        allow read: if isAuthenticated() && (
+          get(/databases/$(database)/documents/chats/$(chatId)).data.clientId == currentUserId() ||
+          get(/databases/$(database)/documents/chats/$(chatId)).data.specialistId == currentUserId()
+        );
+        
+        // Создание: только участники чата могут отправлять сообщения
+        allow create: if isAuthenticated() && (
+          get(/databases/$(database)/documents/chats/$(chatId)).data.clientId == currentUserId() ||
+          get(/databases/$(database)/documents/chats/$(chatId)).data.specialistId == currentUserId()
+        ) &&
+        request.resource.data.senderId == currentUserId() &&
+        request.resource.data.text is string &&
+        request.resource.data.timestamp is timestamp;
+        
+        // Обновление: запрещено (сообщения неизменяемы)
+        allow update: if false;
+        
+        // Удаление: запрещено
+        allow delete: if false;
+      }
+    }
+  }
+}
+

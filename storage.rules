@@ -1,0 +1,129 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==========
+    
+    // Проверка, что пользователь аутентифицирован
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Получение ID текущего пользователя
+    function currentUserId() {
+      return request.auth.uid;
+    }
+    
+    // Проверка, что путь принадлежит пользователю
+    function isOwner(userId) {
+      return isAuthenticated() && currentUserId() == userId;
+    }
+    
+    // Проверка размера файла (максимум 10 МБ)
+    function isValidSize() {
+      return request.resource.size < 10 * 1024 * 1024;
+    }
+    
+    // Проверка типа файла (изображения)
+    function isImage() {
+      return request.resource.contentType.matches('image/.*');
+    }
+    
+    // Проверка типа файла (документы)
+    function isDocument() {
+      return request.resource.contentType.matches('(application/pdf|application/msword|application/vnd.openxmlformats-officedocument.*)');
+    }
+    
+    // ========== АВАТАРЫ ПОЛЬЗОВАТЕЛЕЙ ==========
+    // Путь: avatars/{userId}/{filename}
+    
+    match /avatars/{userId}/{fileName} {
+      // Чтение: все аутентифицированные пользователи могут читать аватары
+      allow read: if isAuthenticated();
+      
+      // Запись: только владелец может загружать/обновлять свой аватар
+      allow write: if isAuthenticated() && 
+                     isOwner(userId) &&
+                     isValidSize() &&
+                     isImage();
+      
+      // Удаление: только владелец может удалить свой аватар
+      allow delete: if isAuthenticated() && isOwner(userId);
+    }
+    
+    // ========== ФОТОГРАФИИ ЗАКАЗОВ ==========
+    // Путь: orders/{orderId}/{fileName}
+    
+    match /orders/{orderId}/{fileName} {
+      // Чтение: участники заказа могут читать фотографии
+      // (проверка через Firestore будет в приложении)
+      allow read: if isAuthenticated();
+      
+      // Запись: только клиент или специалист, связанные с заказом, могут загружать фотографии
+      // (детальная проверка через Firestore будет в приложении)
+      allow write: if isAuthenticated() && 
+                     isValidSize() &&
+                     isImage();
+      
+      // Удаление: только участники заказа могут удалять фотографии
+      allow delete: if isAuthenticated();
+    }
+    
+    // ========== ДОКУМЕНТЫ СПЕЦИАЛИСТОВ ==========
+    // Путь: specialists/{specialistId}/documents/{fileName}
+    // Для сертификатов, лицензий и других документов
+    
+    match /specialists/{specialistId}/documents/{fileName} {
+      // Чтение: все аутентифицированные пользователи могут читать документы специалистов
+      allow read: if isAuthenticated();
+      
+      // Запись: только специалист может загружать свои документы
+      allow write: if isAuthenticated() && 
+                     isOwner(specialistId) &&
+                     isValidSize() &&
+                     (isImage() || isDocument());
+      
+      // Удаление: только специалист может удалять свои документы
+      allow delete: if isAuthenticated() && isOwner(specialistId);
+    }
+    
+    // ========== ВРЕМЕННЫЕ ФАЙЛЫ ==========
+    // Путь: temp/{userId}/{fileName}
+    // Для временных загрузок перед обработкой
+    
+    match /temp/{userId}/{fileName} {
+      // Чтение: только владелец может читать временные файлы
+      allow read: if isAuthenticated() && isOwner(userId);
+      
+      // Запись: только владелец может загружать временные файлы
+      allow write: if isAuthenticated() && 
+                     isOwner(userId) &&
+                     isValidSize();
+      
+      // Удаление: только владелец может удалять временные файлы
+      allow delete: if isAuthenticated() && isOwner(userId);
+    }
+    
+    // ========== ОБЩИЕ ФАЙЛЫ ==========
+    // Путь: public/{fileName}
+    // Для публичных файлов (логотипы, баннеры и т.д.)
+    
+    match /public/{fileName} {
+      // Чтение: все могут читать публичные файлы
+      allow read: if true;
+      
+      // Запись: только аутентифицированные администраторы (проверка через Cloud Functions)
+      allow write: if false; // Запрещено напрямую, только через Cloud Functions
+      
+      // Удаление: запрещено
+      allow delete: if false;
+    }
+    
+    // ========== ЗАПРЕТ ДОСТУПА КО ВСЕМ ОСТАЛЬНЫМ ПУТЯМ ==========
+    
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
+
