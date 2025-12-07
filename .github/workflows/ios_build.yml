@@ -5,7 +5,7 @@ on:
     branches: [ main, master, develop ]
   pull_request:
     branches: [ main, master ]
-  workflow_dispatch:  # Allows manual triggering from GitHub UI
+  workflow_dispatch:
 
 jobs:
   build-ios:
@@ -28,15 +28,11 @@ jobs:
       - name: Setup CocoaPods
         run: |
           cd ios
+          sudo gem install cocoapods
           pod install
-        env:
-          FLUTTER_ROOT: ${{ env.FLUTTER_ROOT }}
       
       - name: Build IPA
         run: flutter build ipa --release
-        env:
-          # Add any environment variables needed for your build
-          # FLUTTER_BUILD_MODE: release
       
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
@@ -54,4 +50,3 @@ jobs:
             build/ios/**/*.log
             build/**/*.log
           retention-days: 7
-
