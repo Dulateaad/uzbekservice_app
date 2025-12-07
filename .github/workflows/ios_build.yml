@@ -31,7 +31,32 @@ jobs:
           sudo gem install cocoapods
           pod install --repo-update
       
+      - name: Setup Xcode code signing
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          TEAM_ID: ${{ secrets.TEAM_ID }}
+        run: |
+          # Create keychain for signing
+          security create-keychain -p "" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "" build.keychain
+          security set-keychain-settings -t 3600 -u build.keychain
+      
+      - name: Configure code signing in Xcode project
+        env:
+          TEAM_ID: ${{ secrets.TEAM_ID }}
+        run: |
+          cd ios
+          # Set team ID in project file
+          sed -i '' "s/DEVELOPMENT_TEAM = .*/DEVELOPMENT_TEAM = $TEAM_ID;/g" Runner.xcodeproj/project.pbxproj || true
+          sed -i '' "s/DevelopmentTeam = .*/DevelopmentTeam = $TEAM_ID;/g" Runner.xcodeproj/project.pbxproj || true
+      
       - name: Build IPA
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          TEAM_ID: ${{ secrets.TEAM_ID }}
         run: flutter build ipa --release
       
       - name: Upload IPA artifact
