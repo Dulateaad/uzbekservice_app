@@ -29,7 +29,7 @@ jobs:
         run: |
           cd ios
           sudo gem install cocoapods
-          pod install
+          pod install --repo-update
       
       - name: Build IPA
         run: flutter build ipa --release
