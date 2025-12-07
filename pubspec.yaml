@@ -29,15 +29,20 @@ dependencies:
   http: ^1.1.2
   dio: ^5.4.0
   url_launcher: ^6.2.2
-  uni_links: ^0.5.1
+  # uni_links: ^0.5.1  # Устаревший пакет, закомментирован
   
   # Local Storage
   shared_preferences: ^2.2.2
   hive: ^2.2.3
   hive_flutter: ^1.1.0
   
-  # Supabase (замена Firebase)
-  supabase_flutter: ^2.5.4
+  # Firebase
+  firebase_core: ^3.8.1
+  firebase_auth: ^5.3.4
+  cloud_firestore: ^5.6.0
+  firebase_storage: ^12.4.0
+  firebase_messaging: ^15.2.0
+  firebase_analytics: ^11.3.3
   
   # Image handling
   image_picker: ^1.0.4
@@ -49,9 +54,10 @@ dependencies:
   geocoding: ^2.1.1
   
   # Utils
-  intl: ^0.18.1
+  intl: ^0.20.2
   permission_handler: ^11.1.0
   wakelock_plus: ^1.1.4
+  flutter_local_notifications: ^17.2.3
   
   # UUID
   uuid: ^4.1.0
@@ -59,6 +65,12 @@ dependencies:
   # UI Components
   flutter_rating_bar: ^4.0.1
   shimmer: ^3.0.0
+  fl_chart: ^0.66.0
+  table_calendar: ^3.1.2
+  
+  # Payment & Security
+  crypto: ^3.0.3
+  webview_flutter: ^4.4.2
 
 dev_dependencies:
   flutter_test:
@@ -66,6 +78,7 @@ dev_dependencies:
   flutter_lints: ^3.0.0
   hive_generator: ^2.0.1
   build_runner: ^2.4.7
+  flutter_launcher_icons: ^0.13.1
 
 flutter:
   uses-material-design: true
@@ -81,3 +94,22 @@ flutter:
   #       - asset: assets/fonts/Roboto-Regular.ttf
   #       - asset: assets/fonts/Roboto-Bold.ttf
   #         weight: 700
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/logo.png"
+  remove_alpha_ios: true
+  min_sdk_android: 21
+  web:
+    generate: true
+    image_path: "assets/images/logo.png"
+    background_color: "#ffffff"
+    theme_color: "#000000"
+  windows:
+    generate: true
+    image_path: "assets/images/logo.png"
+    icon_size: 48
+  macos:
+    generate: true
+    image_path: "assets/images/logo.png"
