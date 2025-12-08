@@ -146,3 +146,8 @@ yarn-error.log
 
 # Server files
 server-oneid/node_modules/
+
+# Xcode DerivedData
+ios/XcodeDerivedData/
+ios/**/XcodeDerivedData/
+**/XcodeDerivedData/
