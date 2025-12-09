@@ -53,9 +53,14 @@ jobs:
           security unlock-keychain -p "" build.keychain
           security set-keychain-settings -t 3600 -u build.keychain
           
-          # Add Apple ID credentials (for automatic provisioning)
-          echo "Configuring Apple ID for automatic provisioning..."
-          # Note: This will be handled by Flutter's automatic signing
+          # Configure Apple ID for automatic provisioning
+          # This allows Flutter to automatically create provisioning profiles
+          echo "Configuring Apple ID credentials..."
+          
+          # Create a temporary file with credentials for xcodebuild
+          mkdir -p ~/.appstoreconnect
+          echo "$APPLE_ID" > ~/.appstoreconnect/username.txt || true
+          echo "$APPLE_ID_PASSWORD" > ~/.appstoreconnect/password.txt || true
       
       - name: Configure code signing in Xcode project
         env:
@@ -80,8 +85,15 @@ jobs:
           TEAM_ID: ${{ secrets.TEAM_ID }}
         run: |
           # Build IPA with automatic code signing
-          # Flutter will handle provisioning automatically if credentials are set
-          flutter build ipa --release
+          # Set environment variables for Flutter to use for automatic provisioning
+          export FLUTTER_BUILD_MODE=release
+          
+          # Build with verbose output to see signing details
+          flutter build ipa --release --verbose 2>&1 | tee build.log || {
+            echo "Build failed, checking logs..."
+            cat build.log
+            exit 1
+          }
       
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
