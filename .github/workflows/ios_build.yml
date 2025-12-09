@@ -89,11 +89,46 @@ jobs:
           export FLUTTER_BUILD_MODE=release
           
           # Build with verbose output to see signing details
+          echo "Starting IPA build..."
           flutter build ipa --release --verbose 2>&1 | tee build.log || {
-            echo "Build failed, checking logs..."
+            echo "❌ Build failed! Checking logs..."
             cat build.log
+            echo ""
+            echo "Checking for IPA file..."
+            ls -la build/ios/ipa/ || echo "IPA directory not found"
             exit 1
           }
+          
+          # Verify IPA was created
+          echo "Verifying IPA file was created..."
+          IPA_FILE=$(find build/ios/ipa -name "*.ipa" 2>/dev/null | head -1)
+          if [ -z "$IPA_FILE" ]; then
+            echo "❌ IPA file not found after build!"
+            echo "Build directory contents:"
+            ls -la build/ios/ 2>/dev/null || echo "Build directory not found"
+            ls -la build/ios/ipa/ 2>/dev/null || echo "IPA directory not found"
+            echo ""
+            echo "Checking for any build artifacts:"
+            find build/ios -type f -name "*.app" 2>/dev/null || echo "No .app files found"
+            exit 1
+          fi
+          
+          echo "✅ IPA file created successfully!"
+          ls -lh "$IPA_FILE"
+      
+      - name: Verify IPA exists
+        run: |
+          if [ ! -f build/ios/ipa/*.ipa ]; then
+            echo "❌ Error: IPA file not found!"
+            echo "Build directory structure:"
+            find build/ios -type f -name "*.ipa" 2>/dev/null || echo "No IPA files found"
+            echo ""
+            echo "Checking build logs..."
+            cat build.log 2>/dev/null || echo "No build log found"
+            exit 1
+          fi
+          echo "✅ IPA file verified:"
+          ls -lh build/ios/ipa/*.ipa
       
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
