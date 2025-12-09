@@ -67,6 +67,8 @@ app.*.map.json
 **/ios/Flutter/Flutter.podspec
 **/ios/Flutter/Generated.xcconfig
 **/ios/Flutter/ephemeral
+# Allow xcconfig files (needed for CI/CD)
+!**/ios/Flutter/*.xcconfig
 **/ios/Flutter/app.flx
 **/ios/Flutter/app.zip
 **/ios/Flutter/flutter_assets/
