@@ -27,14 +27,40 @@ jobs:
       
       - name: Generate Flutter iOS files
         run: |
+          flutter clean
           flutter precache --ios
           flutter pub get
+          
+          # Ensure Flutter xcconfig files exist
+          echo "Verifying Flutter xcconfig files..."
+          if [ ! -f "ios/Flutter/Release.xcconfig" ]; then
+            echo "Creating Release.xcconfig..."
+            cat > ios/Flutter/Release.xcconfig << 'EOF'
+#include? "Pods/Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"
+#include "Generated.xcconfig"
+EOF
+          fi
+          if [ ! -f "ios/Flutter/Debug.xcconfig" ]; then
+            echo "Creating Debug.xcconfig..."
+            cat > ios/Flutter/Debug.xcconfig << 'EOF'
+#include? "Pods/Target Support Files/Pods-Runner/Pods-Runner.debug.xcconfig"
+#include "Generated.xcconfig"
+EOF
+          fi
+          
+          ls -la ios/Flutter/*.xcconfig
       
       - name: Setup CocoaPods
         run: |
           cd ios
           sudo gem install cocoapods
+          # Clean and reinstall pods to ensure all files are generated
+          rm -rf Pods Podfile.lock
           pod install --repo-update
+          
+          # Verify xcfilelist files were created
+          echo "Checking for xcfilelist files..."
+          ls -la "Pods/Target Support Files/Pods-Runner/"*.xcfilelist || echo "Warning: Some xcfilelist files missing"
       
       - name: Verify Flutter config files exist
         run: |
