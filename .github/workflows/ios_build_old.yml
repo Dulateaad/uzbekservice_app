@@ -1,4 +1,4 @@
-name: Build iOS IPA (Fixed)
+name: Build iOS IPA
 
 on:
   push:
@@ -25,21 +25,14 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
       
-      - name: Generate Flutter iOS files
-        run: |
-          flutter precache --ios
-          flutter pub get
+      - name: Generate Flutter files
+        run: flutter precache --ios
       
       - name: Setup CocoaPods
         run: |
           cd ios
           sudo gem install cocoapods
           pod install --repo-update
-      
-      - name: Verify Flutter config files exist
-        run: |
-          ls -la ios/Flutter/*.xcconfig || echo "Warning: xcconfig files not found"
-          flutter doctor -v
       
       - name: Setup Xcode code signing
         env:
@@ -53,35 +46,31 @@ jobs:
           security unlock-keychain -p "" build.keychain
           security set-keychain-settings -t 3600 -u build.keychain
           
-          # Add Apple ID credentials (for automatic provisioning)
-          echo "Configuring Apple ID for automatic provisioning..."
-          # Note: This will be handled by Flutter's automatic signing
+          # Add Apple ID to Xcode
+          echo "Adding Apple ID to Xcode..."
+          xcrun altool --store-password-in-keychain-item "AC_PASSWORD" -u "$APPLE_ID" -p "$APPLE_ID_PASSWORD" || true
       
       - name: Configure code signing in Xcode project
         env:
           TEAM_ID: ${{ secrets.TEAM_ID }}
         run: |
           cd ios
-          
           # Set team ID in project file
-          if [ -f "Runner.xcodeproj/project.pbxproj" ]; then
-            sed -i '' "s/DEVELOPMENT_TEAM = .*/DEVELOPMENT_TEAM = $TEAM_ID;/g" Runner.xcodeproj/project.pbxproj || true
-            sed -i '' "s/DevelopmentTeam = .*/DevelopmentTeam = $TEAM_ID;/g" Runner.xcodeproj/project.pbxproj || true
-            
-            # Enable automatic signing
-            sed -i '' "s/ProvisioningStyle = Manual/ProvisioningStyle = Automatic/g" Runner.xcodeproj/project.pbxproj || true
-            sed -i '' "s/CODE_SIGN_STYLE = Manual/CODE_SIGN_STYLE = Automatic/g" Runner.xcodeproj/project.pbxproj || true
-          fi
+          sed -i '' "s/DEVELOPMENT_TEAM = .*/DEVELOPMENT_TEAM = $TEAM_ID;/g" Runner.xcodeproj/project.pbxproj || true
+          sed -i '' "s/DevelopmentTeam = .*/DevelopmentTeam = $TEAM_ID;/g" Runner.xcodeproj/project.pbxproj || true
+          
+          # Ensure automatic signing is enabled
+          sed -i '' "s/ProvisioningStyle = Manual/ProvisioningStyle = Automatic/g" Runner.xcodeproj/project.pbxproj || true
+          sed -i '' "s/CODE_SIGN_STYLE = Manual/CODE_SIGN_STYLE = Automatic/g" Runner.xcodeproj/project.pbxproj || true
       
-      - name: Build IPA
+      - name: Build IPA with automatic signing
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
           TEAM_ID: ${{ secrets.TEAM_ID }}
         run: |
-          # Build IPA with automatic code signing
-          # Flutter will handle provisioning automatically if credentials are set
-          flutter build ipa --release
+          # Build with automatic code signing
+          flutter build ipa --release --no-codesign || flutter build ipa --release
       
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
@@ -89,7 +78,6 @@ jobs:
           name: ios-ipa
           path: build/ios/ipa/*.ipa
           retention-days: 30
-          if-no-files-found: error
       
       - name: Upload build logs
         if: failure()
@@ -100,4 +88,3 @@ jobs:
             build/ios/**/*.log
             build/**/*.log
           retention-days: 7
-
