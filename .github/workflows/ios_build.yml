@@ -79,14 +79,19 @@ EOF
           security unlock-keychain -p "" build.keychain
           security set-keychain-settings -t 3600 -u build.keychain
           
-          # Configure Apple ID for automatic provisioning
-          # This allows Flutter to automatically create provisioning profiles
-          echo "Configuring Apple ID credentials..."
+          # Add Apple ID to Xcode using xcodebuild
+          echo "Adding Apple ID to Xcode..."
+          # Note: Xcode in CI doesn't support GUI, so we use environment variables
+          # Flutter will use these for automatic provisioning
           
-          # Create a temporary file with credentials for xcodebuild
-          mkdir -p ~/.appstoreconnect
-          echo "$APPLE_ID" > ~/.appstoreconnect/username.txt || true
-          echo "$APPLE_ID_PASSWORD" > ~/.appstoreconnect/password.txt || true
+          # Set environment variables for Xcode to use
+          export APPLE_ID="$APPLE_ID"
+          export APPLE_ID_PASSWORD="$APPLE_ID_PASSWORD"
+          
+          # Create netrc file for authentication (used by some tools)
+          mkdir -p ~/.netrc
+          echo "machine idmsa.apple.com login $APPLE_ID password $APPLE_ID_PASSWORD" > ~/.netrc || true
+          chmod 600 ~/.netrc || true
       
       - name: Configure code signing in Xcode project
         env:
@@ -114,14 +119,26 @@ EOF
           # Set environment variables for Flutter to use for automatic provisioning
           export FLUTTER_BUILD_MODE=release
           
+          # Set Xcode to use automatic signing with credentials
+          export XCODE_APPLE_ID="$APPLE_ID"
+          export XCODE_APPLE_ID_PASSWORD="$APPLE_ID_PASSWORD"
+          
           # Build with verbose output to see signing details
           echo "Starting IPA build..."
+          echo "Using Team ID: $TEAM_ID"
+          echo "Using Apple ID: $APPLE_ID"
+          
+          # Try building with automatic signing
           flutter build ipa --release --verbose 2>&1 | tee build.log || {
             echo "❌ Build failed! Checking logs..."
-            cat build.log
+            cat build.log | tail -100
             echo ""
             echo "Checking for IPA file..."
-            ls -la build/ios/ipa/ || echo "IPA directory not found"
+            ls -la build/ios/ipa/ 2>/dev/null || echo "IPA directory not found"
+            echo ""
+            echo "Checking Xcode signing status..."
+            cd ios
+            xcodebuild -showBuildSettings -workspace Runner.xcworkspace -scheme Runner 2>/dev/null | grep -i "code\|sign\|team" || echo "Could not get signing info"
             exit 1
           }
           
