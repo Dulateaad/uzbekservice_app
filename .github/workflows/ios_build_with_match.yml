@@ -1,0 +1,117 @@
+name: Build iOS IPA (with Match)
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-ios:
+    runs-on: macos-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.3'
+          channel: 'stable'
+          cache: true
+      
+      - name: Install dependencies
+        run: flutter pub get
+      
+      - name: Generate Flutter iOS files
+        run: |
+          flutter clean
+          flutter precache --ios
+          flutter pub get
+          
+          # Ensure Flutter xcconfig files exist
+          if [ ! -f "ios/Flutter/Release.xcconfig" ]; then
+            cat > ios/Flutter/Release.xcconfig << 'EOF'
+#include? "Pods/Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"
+#include "Generated.xcconfig"
+EOF
+          fi
+          if [ ! -f "ios/Flutter/Debug.xcconfig" ]; then
+            cat > ios/Flutter/Debug.xcconfig << 'EOF'
+#include? "Pods/Target Support Files/Pods-Runner/Pods-Runner.debug.xcconfig"
+#include "Generated.xcconfig"
+EOF
+          fi
+      
+      - name: Setup CocoaPods
+        run: |
+          cd ios
+          sudo gem install cocoapods
+          rm -rf Pods Podfile.lock
+          pod install --repo-update
+      
+      - name: Setup Fastlane Match (for code signing)
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          TEAM_ID: ${{ secrets.TEAM_ID }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+        run: |
+          # Install fastlane
+          sudo gem install fastlane
+          
+          # Create keychain
+          security create-keychain -p "" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "" build.keychain
+          security set-keychain-settings -t 3600 -u build.keychain
+          
+          # Setup match (if MATCH_PASSWORD is set)
+          if [ -n "$MATCH_PASSWORD" ]; then
+            cd ios
+            fastlane match development --readonly || echo "Match setup failed, will use automatic signing"
+          fi
+      
+      - name: Configure code signing
+        env:
+          TEAM_ID: ${{ secrets.TEAM_ID }}
+        run: |
+          cd ios
+          # Set team ID
+          sed -i '' "s/DEVELOPMENT_TEAM = .*/DEVELOPMENT_TEAM = $TEAM_ID;/g" Runner.xcodeproj/project.pbxproj || true
+          sed -i '' "s/DevelopmentTeam = .*/DevelopmentTeam = $TEAM_ID;/g" Runner.xcodeproj/project.pbxproj || true
+          sed -i '' "s/ProvisioningStyle = Manual/ProvisioningStyle = Automatic/g" Runner.xcodeproj/project.pbxproj || true
+          sed -i '' "s/CODE_SIGN_STYLE = Manual/CODE_SIGN_STYLE = Automatic/g" Runner.xcodeproj/project.pbxproj || true
+      
+      - name: Build IPA
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          TEAM_ID: ${{ secrets.TEAM_ID }}
+        run: |
+          echo "Building IPA with Team ID: $TEAM_ID"
+          flutter build ipa --release --verbose 2>&1 | tee build.log || {
+            echo "❌ Build failed!"
+            cat build.log | tail -50
+            exit 1
+          }
+          
+          # Verify IPA
+          IPA_FILE=$(find build/ios/ipa -name "*.ipa" 2>/dev/null | head -1)
+          if [ -z "$IPA_FILE" ]; then
+            echo "❌ IPA not found!"
+            exit 1
+          fi
+          echo "✅ IPA created: $IPA_FILE"
+          ls -lh "$IPA_FILE"
+      
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-ipa
+          path: build/ios/ipa/*.ipa
+          retention-days: 30
+          if-no-files-found: error
+

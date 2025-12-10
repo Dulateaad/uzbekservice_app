@@ -79,19 +79,30 @@ EOF
           security unlock-keychain -p "" build.keychain
           security set-keychain-settings -t 3600 -u build.keychain
           
-          # Add Apple ID to Xcode using xcodebuild
+          # Install fastlane for better code signing support
+          sudo gem install fastlane
+          
+          # Add Apple ID to Xcode using fastlane
           echo "Adding Apple ID to Xcode..."
-          # Note: Xcode in CI doesn't support GUI, so we use environment variables
-          # Flutter will use these for automatic provisioning
+          cd ios
           
-          # Set environment variables for Xcode to use
-          export APPLE_ID="$APPLE_ID"
-          export APPLE_ID_PASSWORD="$APPLE_ID_PASSWORD"
+          # Create a temporary Fastfile to add Apple ID
+          cat > Fastfile << EOF
+          default_platform(:ios)
           
-          # Create netrc file for authentication (used by some tools)
-          mkdir -p ~/.netrc
-          echo "machine idmsa.apple.com login $APPLE_ID password $APPLE_ID_PASSWORD" > ~/.netrc || true
-          chmod 600 ~/.netrc || true
+          platform :ios do
+            desc "Setup code signing"
+            lane :setup_signing do
+              # This will prompt for credentials, but we'll use environment variables
+              ENV["FASTLANE_USER"] = "$APPLE_ID"
+              ENV["FASTLANE_PASSWORD"] = "$APPLE_ID_PASSWORD"
+              ENV["FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD"] = "$APPLE_ID_PASSWORD"
+            end
+          end
+          EOF
+          
+          # Try to authenticate (this may fail in CI, but we'll continue)
+          fastlane setup_signing || echo "Fastlane setup failed, will try automatic signing"
       
       - name: Configure code signing in Xcode project
         env:
